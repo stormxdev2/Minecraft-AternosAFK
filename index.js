@@ -1,9 +1,8 @@
 // made by stormxdev, forked from a nice guy actually but i edited it!
-
+const keep_alive = require('./keep_alive.js')
 const mineflayer = require('mineflayer');
 const cmd = require('mineflayer-cmd').plugin;
 const fs = require('fs');
-const keep_alive = require('./keep_alive.js')
 let rawdata = fs.readFileSync('config.json');
 let data = JSON.parse(rawdata);
 
