@@ -1,4 +1,3 @@
-// made by stormxdev, forked from a nice guy actually but i edited it!
 const mineflayer = require('mineflayer');
 const cmd = require('mineflayer-cmd').plugin;
 const fs = require('fs');
@@ -64,7 +63,13 @@ function createBot() {
     });
 
     bot.on('kicked', function(reason, loggedIn) {
-        console.log("Bot was kicked from the server. Reconnecting...");
+        console.log("Bot was kicked from the server. Reason:", reason);
+        connected = false;
+        setTimeout(createBot, 5000); // Reconnect after 5 seconds
+    });
+
+    bot.on('end', function() {
+        console.log("Bot has been disconnected. Reconnecting...");
         connected = false;
         setTimeout(createBot, 5000); // Reconnect after 5 seconds
     });
@@ -89,4 +94,3 @@ function attemptLogin() {
 
 // Begin attempting to log in
 attemptLogin();
-
