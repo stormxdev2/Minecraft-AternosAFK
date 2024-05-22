@@ -44,7 +44,6 @@ function createBot() {
   bot.on('login', function () {
     console.log("Logged In");
     connected = true;
-    bot.chat("hello");
   });
 
   bot.on('time', function () {
@@ -70,19 +69,19 @@ function createBot() {
   bot.on('kicked', function (reason) {
     console.log("Bot was kicked from the server. Reason:", reason);
     connected = false;
-    setTimeout(createBot, 5000); // Reconnect after 5 seconds
+    setTimeout(createBot, 10000); // Reconnect after 10 seconds
   });
 
   bot.on('end', function () {
     console.log("Bot has been disconnected. Reconnecting...");
     connected = false;
-    setTimeout(createBot, 5000); // Reconnect after 5 seconds
+    setTimeout(createBot, 10000); // Reconnect after 10 seconds
   });
 
   bot.on('error', function (err) {
     console.log("Error occurred:", err);
     connected = false;
-    setTimeout(createBot, 5000); // Retry after 5 seconds on error
+    setTimeout(createBot, 10000); // Retry after 10 seconds on error
   });
 }
 
