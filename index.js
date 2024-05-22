@@ -2,94 +2,98 @@ const mineflayer = require('mineflayer');
 const cmd = require('mineflayer-cmd').plugin;
 const fs = require('fs');
 const keep_alive = require('./keep_alive.js');
-let rawdata = fs.readFileSync('config.json');
-let data = JSON.parse(rawdata);
 
-var lasttime = -1;
-var moving = 0;
-var connected = false; // Use boolean to track connection state
-var actions = ['forward', 'back', 'left', 'right'];
-var lastaction;
-var pi = 3.14159;
-var moveinterval = 2; // 2 second movement interval
-var maxrandom = 5; // 0-5 seconds added to movement interval (randomly)
-var host = data["ip"];
-var username = data["name"];
-var nightskip = data["auto-night-skip"];
+// Function to read and parse config.json safely
+function readConfig() {
+  try {
+    let rawdata = fs.readFileSync('config.json');
+    return JSON.parse(rawdata);
+  } catch (error) {
+    console.error('Error reading config.json:', error);
+    return null;
+  }
+}
+
+const data = readConfig();
+if (!data) {
+  process.exit(1); // Exit if config is not found or invalid
+}
+
+const host = data["ip"];
+const username = data["name"];
+const moveinterval = 2; // 2 second movement interval
+const maxrandom = 5; // 0-5 seconds added to movement interval (randomly)
+const actions = ['forward', 'back', 'left', 'right'];
+
+let lasttime = -1;
+let connected = false; // Use boolean to track connection state
+let lastaction;
 
 function getRandomArbitrary(min, max) {
-    return Math.random() * (max - min) + min;
+  return Math.random() * (max - min) + min;
 }
 
 function createBot() {
-    const bot = mineflayer.createBot({
-        host: host,
-        username: username
-    });
+  const bot = mineflayer.createBot({
+    host: host,
+    username: username,
+  });
 
-    bot.loadPlugin(cmd);
+  bot.loadPlugin(cmd);
 
-    bot.on('login', function() {
-        console.log("Logged In");
-        connected = true;
-        bot.chat("hello");
-    });
+  bot.on('login', function () {
+    console.log("Logged In");
+    connected = true;
+    bot.chat("hello");
+  });
 
-    bot.on('time', function(time) {
-        if (nightskip == "true" && bot.time.timeOfDay >= 13000) {
-            bot.chat('/time set day');
-        }
+  bot.on('time', function () {
+    if (!connected) return;
 
-        if (!connected) return;
+    const currentTime = new Date().getTime();
+    if (lasttime < 0 || currentTime - lasttime > (moveinterval * 1000 + Math.random() * maxrandom * 1000)) {
+      lastaction = actions[Math.floor(Math.random() * actions.length)];
+      bot.setControlState(lastaction, true);
+      setTimeout(() => bot.setControlState(lastaction, false), 1000); // Move for 1 second
+      lasttime = currentTime;
+    }
+  });
 
-        if (lasttime < 0 || bot.time.age - lasttime > (moveinterval * 20 + Math.random() * maxrandom * 20)) {
-            const yaw = Math.random() * pi - (0.5 * pi);
-            const pitch = Math.random() * pi - (0.5 * pi);
-            lastaction = actions[Math.floor(Math.random() * actions.length)];
-            bot.look(yaw, pitch, false);
-            bot.setControlState(lastaction, true);
-            moving = true;
-            lasttime = bot.time.age;
-            bot.activateItem();
-        }
-    });
+  bot.on('spawn', function () {
+    connected = true;
+  });
 
-    bot.on('spawn', function() {
-        connected = true;
-    });
+  bot.on('death', function () {
+    bot.emit("respawn");
+  });
 
-    bot.on('death', function() {
-        bot.emit("respawn");
-    });
+  bot.on('kicked', function (reason) {
+    console.log("Bot was kicked from the server. Reason:", reason);
+    connected = false;
+    setTimeout(createBot, 5000); // Reconnect after 5 seconds
+  });
 
-    bot.on('kicked', function(reason, loggedIn) {
-        console.log("Bot was kicked from the server. Reason:", reason);
-        connected = false;
-        setTimeout(createBot, 5000); // Reconnect after 5 seconds
-    });
+  bot.on('end', function () {
+    console.log("Bot has been disconnected. Reconnecting...");
+    connected = false;
+    setTimeout(createBot, 5000); // Reconnect after 5 seconds
+  });
 
-    bot.on('end', function() {
-        console.log("Bot has been disconnected. Reconnecting...");
-        connected = false;
-        setTimeout(createBot, 5000); // Reconnect after 5 seconds
-    });
-
-    bot.on('error', function(err) {
-        console.log("Error occurred:", err);
-        console.log("Attempting to log in again...");
-        connected = false;
-        setTimeout(createBot, 5000); // Retry after 5 seconds on error
-    });
+  bot.on('error', function (err) {
+    console.log("Error occurred:", err);
+    connected = false;
+    setTimeout(createBot, 5000); // Retry after 5 seconds on error
+  });
 }
 
 function startBot() {
-    console.log("Attempting to log in...");
-    createBot(); // Attempt to create a bot instance
+  console.log("Attempting to log in...");
+  createBot(); // Attempt to create a bot instance
 }
 
 // Continuous login attempts
 function attemptLogin() {
-    startBot(); // Start attempting to log in
+  startBot(); // Start attempting to log in
 }
 
 // Begin attempting to log in
