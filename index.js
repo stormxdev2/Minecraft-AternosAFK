@@ -32,13 +32,14 @@ let isAdmin = false;
 let reconnectAttempts = 0;
 const maxReconnectAttempts = 5; // Maximum reconnect attempts before longer wait
 const reconnectInterval = 10000; // 10 seconds
+const retryAdminInterval = 20000; // 20 seconds
 
 function getRandomArbitrary(min, max) {
   return Math.random() * (max - min) + min;
 }
 
-function checkIfAdmin(bot) {
-  bot.chat('/op ' + bot.username);
+function attemptSpectatorMode(bot) {
+  bot.chat("/gamemode spectator");
 }
 
 function createBot() {
@@ -53,7 +54,7 @@ function createBot() {
     console.log("Logged In");
     connected = true;
     reconnectAttempts = 0; // Reset reconnect attempts on successful login
-    checkIfAdmin(bot);
+    attemptSpectatorMode(bot);
   });
 
   bot.on('chat', (username, message) => {
@@ -61,17 +62,26 @@ function createBot() {
     if (message.includes("Made " + bot.username + " a server operator")) {
       isAdmin = true;
       console.log("I am now an operator. Switching to spectator mode...");
-      bot.chat("/gamemode spectator");
-    } else if (message.includes("Made " + bot.username + " no longer a server operator")) {
-      isAdmin = false;
-      console.log("I am no longer an operator.");
+      attemptSpectatorMode(bot);
     }
   });
 
   bot.on('game', function() {
     if (bot.game.gameMode !== 'spectator' && isAdmin) {
-      console.log("Switching to spectator mode...");
-      bot.chat("/gamemode spectator");
+      console.log("Attempting to switch to spectator mode...");
+      attemptSpectatorMode(bot);
+    }
+  });
+
+  bot.on('chat', (username, message) => {
+    if (username === bot.username) return;
+    if (message.includes("Unknown or incomplete command") || message.includes("You do not have permission")) {
+      console.log("Not an operator yet. Will retry in 20 seconds...");
+      setTimeout(() => attemptSpectatorMode(bot), retryAdminInterval);
+    } else if (message.includes("You have been switched to spectator mode")) {
+      console.log("Starting to move...");
+      isAdmin = true;
+      startMoving(bot);
     }
   });
 
@@ -91,7 +101,7 @@ function createBot() {
     connected = true;
     if (!isAdmin) {
       console.log("Waiting to be an operator...");
-      checkIfAdmin(bot);
+      attemptSpectatorMode(bot);
     }
   });
 
@@ -131,6 +141,20 @@ function attemptReconnect() {
     console.log(`Max reconnect attempts reached. Waiting longer to reconnect...`);
     setTimeout(createBot, reconnectInterval * 6); // Wait 1 minute before reconnecting
   }
+}
+
+function startMoving(bot) {
+  bot.on('time', function () {
+    if (!connected || !isAdmin) return;
+
+    const currentTime = new Date().getTime();
+    if (lasttime < 0 || currentTime - lasttime > (moveinterval * 1000 + Math.random() * maxrandom * 1000)) {
+      lastaction = actions[Math.floor(Math.random() * actions.length)];
+      bot.setControlState(lastaction, true);
+      setTimeout(() => bot.setControlState(lastaction, false), 1000); // Move for 1 second
+      lasttime = currentTime;
+    }
+  });
 }
 
 // Continuous login attempts
