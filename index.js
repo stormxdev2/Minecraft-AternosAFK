@@ -40,6 +40,7 @@ function getRandomArbitrary(min, max) {
 
 function attemptSpectatorMode(bot) {
   bot.chat("/gamemode spectator");
+  console.log("Attempting to switch to spectator mode...");
 }
 
 function createBot() {
@@ -57,13 +58,11 @@ function createBot() {
     attemptSpectatorMode(bot);
   });
 
-  bot.on('chat', (username, message) => {
-    if (username === bot.username) return;
-
-    if (message.includes("Unknown or incomplete command") || message.includes("You do not have permission")) {
+  bot.on('message', (message) => {
+    if (message.toString().includes("You do not have permission")) {
       console.log("Failed to switch to spectator mode. Retrying in 20 seconds...");
       setTimeout(() => attemptSpectatorMode(bot), retrySpectatorInterval);
-    } else if (message.includes("You have been switched to spectator mode")) {
+    } else if (message.toString().includes("You are now in spectator mode")) {
       console.log("Successfully switched to spectator mode. Starting to move...");
       isSpectator = true;
       startMoving(bot);
