@@ -42,7 +42,8 @@ function attemptSpectatorMode(bot) {
   if (attemptSpectatorOnce) {
     setTimeout(() => {
       bot.chat("/gamemode spectator");
-      console.log("Attempted to switch to spectator mode. Checking...");
+      console.log("should be in spec mode, starting walking #stormxdev");
+      isSpectator = true;
       attemptSpectatorOnce = false; // Ensure this runs only once
     }, 30000); // Wait 30 seconds before trying to switch to spectator mode
   }
@@ -74,31 +75,19 @@ function createBot() {
   bot.on('kicked', function (reason) {
     console.log("Bot was kicked from the server. Reason:", reason);
     connected = false;
-    setTimeout(createBot, 10000); // Reconnect after 10 seconds
+    attemptReconnect();
   });
 
   bot.on('end', function () {
     console.log("Bot has been disconnected. Reconnecting...");
     connected = false;
-    setTimeout(createBot, 10000); // Reconnect after 10 seconds
+    attemptReconnect();
   });
 
   bot.on('error', function (err) {
     console.log("Error occurred:", err);
     connected = false;
-    setTimeout(createBot, 10000); // Retry after 10 seconds on error
-  });
-
-  bot.on('chat', (username, message) => {
-    if (username === bot.username) return;
-
-    console.log(`${username}: ${message}`);
-
-    if (message.includes('switched to Spectator mode')) {
-      isSpectator = true;
-      console.log("Bot is now in spectator mode. Starting to move...");
-      startMoving(bot);
-    }
+    attemptReconnect();
   });
 }
 
@@ -114,7 +103,7 @@ function startMoving(bot) {
       setTimeout(() => {
         bot.setControlState(lastaction, false);
         console.log(`Bot stopped moving: ${lastaction}`);
-      }, 500); // Move for 0.5 seconds to avoid "moved too quickly"
+      }, 2000); // Move for 2 seconds to simulate normal player movement
       lasttime = currentTime;
     }
   });
