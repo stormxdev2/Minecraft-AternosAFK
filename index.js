@@ -28,6 +28,7 @@ const actions = ['forward', 'back', 'left', 'right'];
 let lasttime = -1;
 let connected = false; // Use boolean to track connection state
 let lastaction;
+let isAdmin = false;
 
 function getRandomArbitrary(min, max) {
   return Math.random() * (max - min) + min;
@@ -46,8 +47,16 @@ function createBot() {
     connected = true;
   });
 
+  bot.on('chat', (username, message) => {
+    if (username === bot.username) return;
+    if (message.includes("You are now an admin")) {
+      isAdmin = true;
+      bot.chat("/gamemode spectator");
+    }
+  });
+
   bot.on('time', function () {
-    if (!connected) return;
+    if (!connected || !isAdmin) return;
 
     const currentTime = new Date().getTime();
     if (lasttime < 0 || currentTime - lasttime > (moveinterval * 1000 + Math.random() * maxrandom * 1000)) {
