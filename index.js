@@ -1,5 +1,7 @@
 const mineflayer = require('mineflayer');
+const cmd = require('mineflayer-cmd').plugin;
 const fs = require('fs');
+const keep_alive = require('./keep_alive.js');
 
 // Function to read and parse config.json safely
 function readConfig() {
@@ -26,9 +28,24 @@ const actions = ['forward', 'back', 'left', 'right'];
 let lasttime = -1;
 let connected = false; // Use boolean to track connection state
 let lastaction;
+let isSpectator = false;
+let attemptSpectatorOnce = true;
+let reconnectAttempts = 0;
+const maxReconnectAttempts = 5; // Maximum reconnect attempts before longer wait
+const reconnectInterval = 10000; // 10 seconds
 
 function getRandomArbitrary(min, max) {
   return Math.random() * (max - min) + min;
+}
+
+function attemptSpectatorMode(bot) {
+  if (attemptSpectatorOnce) {
+    setTimeout(() => {
+      bot.chat("/gamemode spectator");
+      console.log("Attempted to switch to spectator mode. Checking...");
+      attemptSpectatorOnce = false; // Ensure this runs only once
+    }, 30000); // Wait 30 seconds before trying to switch to spectator mode
+  }
 }
 
 function createBot() {
@@ -37,13 +54,13 @@ function createBot() {
     username: username,
   });
 
+  bot.loadPlugin(cmd);
+
   bot.on('login', function () {
     console.log("Logged In");
     connected = true;
-    setTimeout(() => {
-      bot.chat("/gamemode spectator");
-      console.log("Attempted to switch to spectator mode. Checking...");
-    }, 30000); // Wait 30 seconds before trying to switch to spectator mode
+    reconnectAttempts = 0; // Reset reconnect attempts on successful login
+    attemptSpectatorMode(bot);
   });
 
   bot.on('spawn', function () {
@@ -78,22 +95,39 @@ function createBot() {
     console.log(`${username}: ${message}`);
 
     if (message.includes('switched to Spectator mode')) {
+      isSpectator = true;
       console.log("Bot is now in spectator mode. Starting to move...");
       startMoving(bot);
     }
   });
+}
 
+function startMoving(bot) {
   bot.on('time', function () {
-    if (!connected) return;
+    if (!connected || !isSpectator) return;
 
     const currentTime = new Date().getTime();
     if (lasttime < 0 || currentTime - lasttime > (moveinterval * 1000 + Math.random() * maxrandom * 1000)) {
       lastaction = actions[Math.floor(Math.random() * actions.length)];
       bot.setControlState(lastaction, true);
-      setTimeout(() => bot.setControlState(lastaction, false), 1000); // Move for 1 second
+      console.log(`Bot is moving: ${lastaction}`);
+      setTimeout(() => {
+        bot.setControlState(lastaction, false);
+        console.log(`Bot stopped moving: ${lastaction}`);
+      }, 500); // Move for 0.5 seconds to avoid "moved too quickly"
       lasttime = currentTime;
     }
   });
+}
+
+function attemptReconnect() {
+  if (reconnectAttempts < maxReconnectAttempts) {
+    reconnectAttempts++;
+    setTimeout(createBot, reconnectInterval);
+  } else {
+    console.log(`Max reconnect attempts reached. Waiting longer to reconnect...`);
+    setTimeout(createBot, reconnectInterval * 6); // Wait 1 minute before reconnecting
+  }
 }
 
 function startBot() {
