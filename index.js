@@ -29,6 +29,9 @@ let lasttime = -1;
 let connected = false; // Use boolean to track connection state
 let lastaction;
 let isAdmin = false;
+let reconnectAttempts = 0;
+const maxReconnectAttempts = 5; // Maximum reconnect attempts before longer wait
+const reconnectInterval = 10000; // 10 seconds
 
 function getRandomArbitrary(min, max) {
   return Math.random() * (max - min) + min;
@@ -49,6 +52,7 @@ function createBot() {
   bot.on('login', function () {
     console.log("Logged In");
     connected = true;
+    reconnectAttempts = 0; // Reset reconnect attempts on successful login
     checkIfAdmin(bot);
   });
 
@@ -56,6 +60,12 @@ function createBot() {
     if (username === bot.username) return;
     if (message.includes("Made " + bot.username + " a server operator")) {
       isAdmin = true;
+      bot.chat("/gamemode spectator");
+    }
+  });
+
+  bot.on('game', function() {
+    if (bot.game.gameMode === 'survival' && isAdmin) {
       bot.chat("/gamemode spectator");
     }
   });
@@ -87,25 +97,35 @@ function createBot() {
   bot.on('kicked', function (reason) {
     console.log("Bot was kicked from the server. Reason:", reason);
     connected = false;
-    setTimeout(createBot, 10000); // Reconnect after 10 seconds
+    attemptReconnect();
   });
 
   bot.on('end', function () {
     console.log("Bot has been disconnected. Reconnecting...");
     connected = false;
-    setTimeout(createBot, 10000); // Reconnect after 10 seconds
+    attemptReconnect();
   });
 
   bot.on('error', function (err) {
     console.log("Error occurred:", err);
     connected = false;
-    setTimeout(createBot, 10000); // Retry after 10 seconds on error
+    attemptReconnect();
   });
 }
 
 function startBot() {
   console.log("Attempting to log in...");
   createBot(); // Attempt to create a bot instance
+}
+
+function attemptReconnect() {
+  if (reconnectAttempts < maxReconnectAttempts) {
+    reconnectAttempts++;
+    setTimeout(createBot, reconnectInterval);
+  } else {
+    console.log(`Max reconnect attempts reached. Waiting longer to reconnect...`);
+    setTimeout(createBot, reconnectInterval * 6); // Wait 1 minute before reconnecting
+  }
 }
 
 // Continuous login attempts
