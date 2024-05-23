@@ -42,10 +42,9 @@ function attemptSpectatorMode(bot) {
   if (attemptSpectatorOnce) {
     setTimeout(() => {
       bot.chat("/gamemode spectator");
-      console.log("Switched to spectator mode. Starting to move...");
+      console.log("Attempted to switch to spectator mode. Checking...");
       isSpectator = true;
       attemptSpectatorOnce = false; // Ensure this runs only once
-      startMoving(bot);
     }, 30000); // Wait 30 seconds before trying to switch to spectator mode
   }
 }
@@ -63,18 +62,6 @@ function createBot() {
     connected = true;
     reconnectAttempts = 0; // Reset reconnect attempts on successful login
     attemptSpectatorMode(bot);
-  });
-
-  bot.on('time', function () {
-    if (!connected || !isSpectator) return;
-
-    const currentTime = new Date().getTime();
-    if (lasttime < 0 || currentTime - lasttime > (moveinterval * 1000 + Math.random() * maxrandom * 1000)) {
-      lastaction = actions[Math.floor(Math.random() * actions.length)];
-      bot.setControlState(lastaction, true);
-      setTimeout(() => bot.setControlState(lastaction, false), 500); // Move for 0.5 seconds to avoid "moved too quickly"
-      lasttime = currentTime;
-    }
   });
 
   bot.on('spawn', function () {
@@ -102,11 +89,36 @@ function createBot() {
     connected = false;
     attemptReconnect();
   });
+
+  bot.on('chat', (username, message) => {
+    if (username === bot.username) return;
+
+    console.log(`${username}: ${message}`);
+
+    if (message.includes('switched to Spectator mode')) {
+      isSpectator = true;
+      console.log("Bot is now in spectator mode. Starting to move...");
+      startMoving(bot);
+    }
+  });
 }
 
-function startBot() {
-  console.log("Attempting to log in...");
-  createBot(); // Attempt to create a bot instance
+function startMoving(bot) {
+  bot.on('time', function () {
+    if (!connected || !isSpectator) return;
+
+    const currentTime = new Date().getTime();
+    if (lasttime < 0 || currentTime - lasttime > (moveinterval * 1000 + Math.random() * maxrandom * 1000)) {
+      lastaction = actions[Math.floor(Math.random() * actions.length)];
+      bot.setControlState(lastaction, true);
+      console.log(`Bot is moving: ${lastaction}`);
+      setTimeout(() => {
+        bot.setControlState(lastaction, false);
+        console.log(`Bot stopped moving: ${lastaction}`);
+      }, 500); // Move for 0.5 seconds to avoid "moved too quickly"
+      lasttime = currentTime;
+    }
+  });
 }
 
 function attemptReconnect() {
@@ -119,18 +131,9 @@ function attemptReconnect() {
   }
 }
 
-function startMoving(bot) {
-  bot.on('time', function () {
-    if (!connected || !isSpectator) return;
-
-    const currentTime = new Date().getTime();
-    if (lasttime < 0 || currentTime - lasttime > (moveinterval * 1000 + Math.random() * maxrandom * 1000)) {
-      lastaction = actions[Math.floor(Math.random() * actions.length)];
-      bot.setControlState(lastaction, true);
-      setTimeout(() => bot.setControlState(lastaction, false), 500); // Move for 0.5 seconds to avoid "moved too quickly"
-      lasttime = currentTime;
-    }
-  });
+function startBot() {
+  console.log("Attempting to log in...");
+  createBot(); // Attempt to create a bot instance
 }
 
 // Continuous login attempts
