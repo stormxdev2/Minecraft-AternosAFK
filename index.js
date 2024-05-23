@@ -1,5 +1,6 @@
 const mineflayer = require('mineflayer');
 const fs = require('fs');
+const keep_alive = require('./keep_alive.js');
 
 // Function to read and parse config.json safely
 function readConfig() {
@@ -50,7 +51,7 @@ function createBot() {
   });
 
   bot.on('kicked', function (reason) {
-    console.log("Bot was kicked from the server. Reason:", reason);
+    console.log(`Bot was kicked from the server. Reason: ${reason}`);
     connected = false;
     attemptReconnect();
   });
