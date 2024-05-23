@@ -60,12 +60,17 @@ function createBot() {
     if (username === bot.username) return;
     if (message.includes("Made " + bot.username + " a server operator")) {
       isAdmin = true;
+      console.log("I am now an operator. Switching to spectator mode...");
       bot.chat("/gamemode spectator");
+    } else if (message.includes("Made " + bot.username + " no longer a server operator")) {
+      isAdmin = false;
+      console.log("I am no longer an operator.");
     }
   });
 
   bot.on('game', function() {
-    if (bot.game.gameMode === 'survival' && isAdmin) {
+    if (bot.game.gameMode !== 'spectator' && isAdmin) {
+      console.log("Switching to spectator mode...");
       bot.chat("/gamemode spectator");
     }
   });
