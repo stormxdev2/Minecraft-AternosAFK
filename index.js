@@ -1,9 +1,6 @@
 const mineflayer = require('mineflayer');
-const cmd = require('mineflayer-cmd').plugin;
 const fs = require('fs');
-// Add keep_alive
 const keep_alive = require('./keep_alive.js');
-
 // Function to read and parse config.json safely
 function readConfig() {
   try {
@@ -22,53 +19,16 @@ if (!data) {
 
 const host = data["ip"];
 const username = data["name"];
-const moveinterval = 2; // 2 second movement interval
-const maxrandom = 5; // 0-5 seconds added to movement interval (randomly)
+const moveInterval = 2000; // 2 seconds movement interval
+const maxRandom = 5000; // 0-5 seconds added to movement interval (randomly)
 const actions = ['forward', 'back', 'left', 'right'];
 
-let lasttime = -1;
+let lastTime = -1;
 let connected = false; // Use boolean to track connection state
-let lastaction;
-let isSpectator = false;
-let attemptSpectatorOnce = true;
-let reconnectAttempts = 0;
-const maxReconnectAttempts = 5; // Maximum reconnect attempts before longer wait
-const reconnectInterval = 10000; // 10 seconds
+let lastAction;
 
-// Remove join and leave messages for the bot
-function removeBotMessages(bot) {
-  bot.on('playerJoined', (player) => {
-    if (player.username !== bot.username) {
-      console.log(`${player.username} joined the game`);
-    }
-  });
-
-  bot.on('playerLeft', (player) => {
-    if (player.username !== bot.username) {
-      console.log(`${player.username} left the game`);
-    }
-  });
-}
-
-// Start keep-alive mechanism
-function startKeepAlive(bot) {
-  setInterval(() => {
-    bot.setControlState('forward', true); // Move forward (or any action to keep bot active)
-    setTimeout(() => {
-      bot.setControlState('forward', false); // Stop moving forward after 1 second
-    }, 1000);
-  }, 30 * 1000); // Keep bot active every 30 seconds
-}
-
-function attemptSpectatorMode(bot) {
-  if (attemptSpectatorOnce) {
-    setTimeout(() => {
-      bot.chat("/gamemode spectator");
-      console.log("Should be in spectator mode, starting walking #stormxdev");
-      isSpectator = true;
-      attemptSpectatorOnce = false; // Ensure this runs only once
-    }, 30000); // Wait 30 seconds before trying to switch to spectator mode
-  }
+function getRandomArbitrary(min, max) {
+  return Math.random() * (max - min) + min;
 }
 
 function createBot() {
@@ -77,27 +37,17 @@ function createBot() {
     username: username,
   });
 
-  bot.loadPlugin(cmd);
-
   bot.on('login', function () {
     console.log("Logged In");
     connected = true;
-    removeBotMessages(bot); // Remove join and leave messages for the bot
-    startKeepAlive(bot); // Start the keep-alive mechanism after logging in
-    reconnectAttempts = 0; // Reset reconnect attempts on successful login
-    attemptSpectatorMode(bot);
   });
 
   bot.on('spawn', function () {
     connected = true;
   });
 
-  bot.on('death', function () {
-    bot.emit("respawn");
-  });
-
   bot.on('kicked', function (reason) {
-    console.log(`Bot was kicked from the server. Reason: ${reason}`);
+    console.log("Bot was kicked from the server. Reason:", reason);
     connected = false;
     attemptReconnect();
   });
@@ -115,44 +65,30 @@ function createBot() {
   });
 
   bot.on('chat', (username, message) => {
-    if (username === bot.username) return;
-
-    console.log(`${username}: ${message}`);
-
-    if (message.includes('switched to Spectator mode')) {
-      isSpectator = true;
-      console.log("Should be in spectator mode, starting walking #stormxdev");
-      startMoving(bot);
-    }
+    // Do nothing for chat events
   });
+
+  startMoving(bot);
 }
 
 function startMoving(bot) {
-  bot.on('time', function () {
-    if (!connected || !isSpectator) return;
+  setInterval(() => {
+    if (!connected) return;
 
     const currentTime = new Date().getTime();
-    if (lasttime < 0 || currentTime - lasttime > (moveinterval * 1000 + Math.random() * maxrandom * 1000)) {
-      lastaction = actions[Math.floor(Math.random() * actions.length)];
-      bot.setControlState(lastaction, true);
-      console.log(`Bot is moving: ${lastaction}`);
+    if (lastTime < 0 || currentTime - lastTime > (moveInterval + getRandomArbitrary(0, maxRandom))) {
+      lastAction = actions[Math.floor(Math.random() * actions.length)];
+      bot.setControlState(lastAction, true);
       setTimeout(() => {
-        bot.setControlState(lastaction, false);
-        console.log(`Bot stopped moving: ${lastaction}`);
+        bot.setControlState(lastAction, false);
       }, 500); // Move for 0.5 seconds to avoid "moved too quickly"
-      lasttime = currentTime;
+      lastTime = currentTime;
     }
-  });
+  }, moveInterval);
 }
 
 function attemptReconnect() {
-  if (reconnectAttempts < maxReconnectAttempts) {
-    reconnectAttempts++;
-    setTimeout(createBot, reconnectInterval);
-  } else {
-    console.log(`Max reconnect attempts reached. Waiting longer to reconnect...`);
-    setTimeout(createBot, reconnectInterval * 6); // Wait 1 minute before reconnecting
-  }
+  setTimeout(createBot, 10000); // Attempt to reconnect after 10 seconds
 }
 
 function startBot() {
