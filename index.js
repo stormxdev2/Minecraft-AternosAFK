@@ -32,15 +32,18 @@ let isSpectator = false;
 let reconnectAttempts = 0;
 const maxReconnectAttempts = 5; // Maximum reconnect attempts before longer wait
 const reconnectInterval = 10000; // 10 seconds
-const retrySpectatorInterval = 20000; // 20 seconds
 
 function getRandomArbitrary(min, max) {
   return Math.random() * (max - min) + min;
 }
 
 function attemptSpectatorMode(bot) {
-  bot.chat("/gamemode spectator");
-  console.log("Attempting to switch to spectator mode...");
+  setTimeout(() => {
+    bot.chat("/gamemode spectator");
+    console.log("Switched to spectator mode. Starting to move...");
+    isSpectator = true;
+    startMoving(bot);
+  }, 30000); // Wait 30 seconds before trying to switch to spectator mode
 }
 
 function createBot() {
@@ -58,17 +61,6 @@ function createBot() {
     attemptSpectatorMode(bot);
   });
 
-  bot.on('message', (message) => {
-    if (message.toString().includes("You do not have permission")) {
-      console.log("Failed to switch to spectator mode. Retrying in 20 seconds...");
-      setTimeout(() => attemptSpectatorMode(bot), retrySpectatorInterval);
-    } else if (message.toString().includes("You are now in spectator mode")) {
-      console.log("Successfully switched to spectator mode. Starting to move...");
-      isSpectator = true;
-      startMoving(bot);
-    }
-  });
-
   bot.on('time', function () {
     if (!connected || !isSpectator) return;
 
@@ -83,10 +75,6 @@ function createBot() {
 
   bot.on('spawn', function () {
     connected = true;
-    if (!isSpectator) {
-      console.log("Waiting to switch to spectator mode...");
-      attemptSpectatorMode(bot);
-    }
   });
 
   bot.on('death', function () {
