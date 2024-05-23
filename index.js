@@ -1,6 +1,7 @@
 const mineflayer = require('mineflayer');
 const fs = require('fs');
-const keep_alive = require('./keep_alive.js');
+const keep_alive = require('./keep_alive.js'); // Ensure this file exists and properly configured
+
 // Function to read and parse config.json safely
 function readConfig() {
   try {
@@ -14,21 +15,22 @@ function readConfig() {
 
 const data = readConfig();
 if (!data) {
+  console.error('No valid config found, exiting.');
   process.exit(1); // Exit if config is not found or invalid
 }
 
 const host = data["ip"];
 const username = data["name"];
-const moveInterval = 2000; // 2 seconds movement interval
-const maxRandom = 5000; // 0-5 seconds added to movement interval (randomly)
+const moveInterval = 20 * 1000; // Move every 20 seconds to prevent AFK
 const actions = ['forward', 'back', 'left', 'right'];
 
-let lastTime = -1;
-let connected = false; // Use boolean to track connection state
-let lastAction;
+let lastActionTime = -1;
+let reconnectAttempts = 0;
+const maxReconnectAttempts = 5;
+const reconnectInterval = 10 * 1000; // 10 seconds
 
-function getRandomArbitrary(min, max) {
-  return Math.random() * (max - min) + min;
+function getRandomAction() {
+  return actions[Math.floor(Math.random() * actions.length)];
 }
 
 function createBot() {
@@ -37,69 +39,68 @@ function createBot() {
     username: username,
   });
 
-  bot.on('login', function () {
-    console.log("Logged In");
-    connected = true;
+  bot.on('login', () => {
+    console.log("Logged in");
+    reconnectAttempts = 0;
+    startMoving(bot);
   });
 
-  bot.on('spawn', function () {
-    connected = true;
+  bot.on('spawn', () => {
+    console.log("Spawned");
   });
 
-  bot.on('kicked', function (reason) {
-    console.log("Bot was kicked from the server. Reason:", reason);
-    connected = false;
-    attemptReconnect();
+  bot.on('death', () => {
+    bot.emit("respawn");
   });
 
-  bot.on('end', function () {
-    console.log("Bot has been disconnected. Reconnecting...");
-    connected = false;
-    attemptReconnect();
+  bot.on('kicked', (reason) => {
+    console.log("Kicked from the server:", reason);
+    reconnect(bot);
   });
 
-  bot.on('error', function (err) {
-    console.log("Error occurred:", err);
-    connected = false;
-    attemptReconnect();
+  bot.on('end', () => {
+    console.log("Disconnected, attempting to reconnect...");
+    reconnect(bot);
   });
 
-  bot.on('chat', (username, message) => {
-    // Do nothing for chat events
+  bot.on('error', (err) => {
+    console.error("Error occurred:", err);
+    reconnect(bot);
   });
 
-  startMoving(bot);
+  function startMoving(bot) {
+    setInterval(() => {
+      const currentTime = Date.now();
+      if (lastActionTime < 0 || currentTime - lastActionTime > moveInterval) {
+        const action = getRandomAction();
+        bot.setControlState(action, true);
+        console.log(`Moving: ${action}`);
+        setTimeout(() => {
+          bot.setControlState(action, false);
+          console.log(`Stopped moving: ${action}`);
+        }, 500); // Move for 0.5 seconds
+        lastActionTime = currentTime;
+      }
+    }, 1000); // Check every second
+  }
 }
 
-function startMoving(bot) {
-  setInterval(() => {
-    if (!connected) return;
-
-    const currentTime = new Date().getTime();
-    if (lastTime < 0 || currentTime - lastTime > (moveInterval + getRandomArbitrary(0, maxRandom))) {
-      lastAction = actions[Math.floor(Math.random() * actions.length)];
-      bot.setControlState(lastAction, true);
-      setTimeout(() => {
-        bot.setControlState(lastAction, false);
-      }, 500); // Move for 0.5 seconds to avoid "moved too quickly"
-      lastTime = currentTime;
-    }
-  }, moveInterval);
-}
-
-function attemptReconnect() {
-  setTimeout(createBot, 10000); // Attempt to reconnect after 10 seconds
+function reconnect(bot) {
+  if (reconnectAttempts < maxReconnectAttempts) {
+    reconnectAttempts++;
+    setTimeout(() => {
+      console.log(`Reconnection attempt ${reconnectAttempts}/${maxReconnectAttempts}...`);
+      createBot();
+    }, reconnectInterval);
+  } else {
+    console.error("Max reconnect attempts reached. Exiting...");
+    process.exit(1);
+  }
 }
 
 function startBot() {
-  console.log("Attempting to log in...");
-  createBot(); // Attempt to create a bot instance
+  console.log("Starting bot...");
+  createBot();
 }
 
-// Continuous login attempts
-function attemptLogin() {
-  startBot(); // Start attempting to log in
-}
-
-// Begin attempting to log in
-attemptLogin();
+startBot();
