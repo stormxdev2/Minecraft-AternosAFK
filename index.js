@@ -29,6 +29,7 @@ let lasttime = -1;
 let connected = false; // Use boolean to track connection state
 let lastaction;
 let isSpectator = false;
+let attemptSpectatorOnce = true;
 let reconnectAttempts = 0;
 const maxReconnectAttempts = 5; // Maximum reconnect attempts before longer wait
 const reconnectInterval = 10000; // 10 seconds
@@ -38,12 +39,15 @@ function getRandomArbitrary(min, max) {
 }
 
 function attemptSpectatorMode(bot) {
-  setTimeout(() => {
-    bot.chat("/gamemode spectator");
-    console.log("Switched to spectator mode. Starting to move...");
-    isSpectator = true;
-    startMoving(bot);
-  }, 30000); // Wait 30 seconds before trying to switch to spectator mode
+  if (attemptSpectatorOnce) {
+    setTimeout(() => {
+      bot.chat("/gamemode spectator");
+      console.log("Switched to spectator mode. Starting to move...");
+      isSpectator = true;
+      attemptSpectatorOnce = false; // Ensure this runs only once
+      startMoving(bot);
+    }, 30000); // Wait 30 seconds before trying to switch to spectator mode
+  }
 }
 
 function createBot() {
@@ -68,7 +72,7 @@ function createBot() {
     if (lasttime < 0 || currentTime - lasttime > (moveinterval * 1000 + Math.random() * maxrandom * 1000)) {
       lastaction = actions[Math.floor(Math.random() * actions.length)];
       bot.setControlState(lastaction, true);
-      setTimeout(() => bot.setControlState(lastaction, false), 1000); // Move for 1 second
+      setTimeout(() => bot.setControlState(lastaction, false), 500); // Move for 0.5 seconds to avoid "moved too quickly"
       lasttime = currentTime;
     }
   });
@@ -123,7 +127,7 @@ function startMoving(bot) {
     if (lasttime < 0 || currentTime - lasttime > (moveinterval * 1000 + Math.random() * maxrandom * 1000)) {
       lastaction = actions[Math.floor(Math.random() * actions.length)];
       bot.setControlState(lastaction, true);
-      setTimeout(() => bot.setControlState(lastaction, false), 1000); // Move for 1 second
+      setTimeout(() => bot.setControlState(lastaction, false), 500); // Move for 0.5 seconds to avoid "moved too quickly"
       lasttime = currentTime;
     }
   });
