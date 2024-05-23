@@ -34,6 +34,10 @@ function getRandomArbitrary(min, max) {
   return Math.random() * (max - min) + min;
 }
 
+function checkIfAdmin(bot) {
+  bot.chat('/op ' + bot.username);
+}
+
 function createBot() {
   const bot = mineflayer.createBot({
     host: host,
@@ -45,11 +49,12 @@ function createBot() {
   bot.on('login', function () {
     console.log("Logged In");
     connected = true;
+    checkIfAdmin(bot);
   });
 
   bot.on('chat', (username, message) => {
     if (username === bot.username) return;
-    if (message.includes("You are now an admin")) {
+    if (message.includes("Made " + bot.username + " a server operator")) {
       isAdmin = true;
       bot.chat("/gamemode spectator");
     }
@@ -69,6 +74,10 @@ function createBot() {
 
   bot.on('spawn', function () {
     connected = true;
+    if (!isAdmin) {
+      console.log("Waiting to be an operator...");
+      checkIfAdmin(bot);
+    }
   });
 
   bot.on('death', function () {
