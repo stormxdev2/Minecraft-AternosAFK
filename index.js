@@ -28,11 +28,11 @@ const actions = ['forward', 'back', 'left', 'right'];
 let lasttime = -1;
 let connected = false; // Use boolean to track connection state
 let lastaction;
-let isAdmin = false;
+let isSpectator = false;
 let reconnectAttempts = 0;
 const maxReconnectAttempts = 5; // Maximum reconnect attempts before longer wait
 const reconnectInterval = 10000; // 10 seconds
-const retryAdminInterval = 20000; // 20 seconds
+const retrySpectatorInterval = 20000; // 20 seconds
 
 function getRandomArbitrary(min, max) {
   return Math.random() * (max - min) + min;
@@ -59,34 +59,19 @@ function createBot() {
 
   bot.on('chat', (username, message) => {
     if (username === bot.username) return;
-    if (message.includes("Made " + bot.username + " a server operator")) {
-      isAdmin = true;
-      console.log("I am now an operator. Switching to spectator mode...");
-      attemptSpectatorMode(bot);
-    }
-  });
 
-  bot.on('game', function() {
-    if (bot.game.gameMode !== 'spectator' && isAdmin) {
-      console.log("Attempting to switch to spectator mode...");
-      attemptSpectatorMode(bot);
-    }
-  });
-
-  bot.on('chat', (username, message) => {
-    if (username === bot.username) return;
     if (message.includes("Unknown or incomplete command") || message.includes("You do not have permission")) {
-      console.log("Not an operator yet. Will retry in 20 seconds...");
-      setTimeout(() => attemptSpectatorMode(bot), retryAdminInterval);
+      console.log("Failed to switch to spectator mode. Retrying in 20 seconds...");
+      setTimeout(() => attemptSpectatorMode(bot), retrySpectatorInterval);
     } else if (message.includes("You have been switched to spectator mode")) {
-      console.log("Starting to move...");
-      isAdmin = true;
+      console.log("Successfully switched to spectator mode. Starting to move...");
+      isSpectator = true;
       startMoving(bot);
     }
   });
 
   bot.on('time', function () {
-    if (!connected || !isAdmin) return;
+    if (!connected || !isSpectator) return;
 
     const currentTime = new Date().getTime();
     if (lasttime < 0 || currentTime - lasttime > (moveinterval * 1000 + Math.random() * maxrandom * 1000)) {
@@ -99,8 +84,8 @@ function createBot() {
 
   bot.on('spawn', function () {
     connected = true;
-    if (!isAdmin) {
-      console.log("Waiting to be an operator...");
+    if (!isSpectator) {
+      console.log("Waiting to switch to spectator mode...");
       attemptSpectatorMode(bot);
     }
   });
@@ -145,7 +130,7 @@ function attemptReconnect() {
 
 function startMoving(bot) {
   bot.on('time', function () {
-    if (!connected || !isAdmin) return;
+    if (!connected || !isSpectator) return;
 
     const currentTime = new Date().getTime();
     if (lasttime < 0 || currentTime - lasttime > (moveinterval * 1000 + Math.random() * maxrandom * 1000)) {
