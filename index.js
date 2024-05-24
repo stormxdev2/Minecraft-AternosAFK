@@ -1,6 +1,7 @@
 const mineflayer = require('mineflayer');
 const fs = require('fs');
 const keep_alive = require('./keep_alive.js'); // Ensure this file exists and properly configured
+const { status } = require('minecraft-server-util'); // Import the package for server status checking
 
 // Function to read and parse config.json safely
 function readConfig() {
@@ -20,6 +21,7 @@ if (!data) {
 }
 
 const host = data["ip"];
+const port = data["port"] || 25565; // Default Minecraft port is 25565
 const username = data["name"];
 const moveInterval = 20 * 1000; // Move every 20 seconds to prevent AFK
 const actions = ['forward', 'back', 'left', 'right'];
@@ -32,6 +34,7 @@ const reconnectInterval = 10 * 1000; // 10 seconds
 const disconnectInterval = 30 * 1000; // 30 seconds
 
 let bot; // Declare bot variable to keep track of the bot instance
+let scheduledDisconnect = false; // Flag to indicate a scheduled disconnect
 
 function getRandomAction() {
   return actions[Math.floor(Math.random() * actions.length)];
@@ -60,17 +63,24 @@ function createBot() {
 
   bot.on('kicked', (reason) => {
     console.log("Kicked from the server:", reason);
-    reconnect();
+    if (!scheduledDisconnect) {
+      reconnect();
+    }
   });
 
   bot.on('end', () => {
-    console.log("Disconnected, attempting to reconnect...");
-    reconnect();
+    console.log("Disconnected");
+    if (!scheduledDisconnect) {
+      console.log("Unexpected disconnection, attempting to reconnect...");
+      reconnect();
+    }
   });
 
   bot.on('error', (err) => {
     console.error("Error occurred:", err);
-    reconnect();
+    if (!scheduledDisconnect) {
+      reconnect();
+    }
   });
 
   function startMoving(bot) {
@@ -95,7 +105,7 @@ function reconnect() {
     reconnectAttempts++;
     setTimeout(() => {
       console.log(`Reconnection attempt ${reconnectAttempts}/${maxReconnectAttempts}...`);
-      createBot();
+      checkServerStatusAndCreateBot();
     }, reconnectInterval);
   } else {
     console.error("Max reconnect attempts reached. Exiting...");
@@ -106,18 +116,32 @@ function reconnect() {
 function scheduleDisconnect() {
   setTimeout(() => {
     console.log("Disconnecting for scheduled restart...");
+    scheduledDisconnect = true; // Indicate that this is a scheduled disconnect
     bot.quit();
     const reconnectTime = 60 * 1000 + Math.random() * 30 * 1000; // 1 to 1.5 minutes
     setTimeout(() => {
       console.log("Reconnecting after scheduled restart...");
-      createBot();
+      scheduledDisconnect = false; // Reset the flag before reconnecting
+      checkServerStatusAndCreateBot();
     }, reconnectTime);
   }, disconnectInterval);
 }
 
+function checkServerStatusAndCreateBot() {
+  status(host, port)
+    .then((response) => {
+      console.log("Server is online, attempting to connect...");
+      createBot();
+    })
+    .catch((error) => {
+      console.error("Server is offline, retrying...");
+      setTimeout(checkServerStatusAndCreateBot, reconnectInterval);
+    });
+}
+
 function startBot() {
   console.log("Starting bot...");
-  createBot();
+  checkServerStatusAndCreateBot();
 }
 
 startBot();
