@@ -28,7 +28,7 @@ const naturalMoveDuration = () => 1000 + Math.random() * 2000; // Move for 1-3 s
 let lastActionTime = -1;
 let reconnectAttempts = 0;
 const reconnectInterval = 10 * 1000; // 10 seconds
-const disconnectInterval = 30 * 1000; // 30 seconds
+const disconnectInterval = 2 * 60 * 60 * 1000; // 2 hours
 
 let bot; // Declare bot variable to keep track of the bot instance
 let scheduledDisconnect = false; // Flag to indicate a scheduled disconnect
@@ -47,7 +47,7 @@ function createBot() {
     console.log("Logged in");
     reconnectAttempts = 0;
     startMoving(bot);
-    scheduleDisconnect(); // Schedule the disconnect after 30 seconds
+    scheduleDisconnect(); // Schedule the disconnect after 2 hours
   });
 
   bot.on('spawn', () => {
@@ -86,10 +86,8 @@ function createBot() {
       if (lastActionTime < 0 || currentTime - lastActionTime > moveInterval) {
         const action = getRandomAction();
         bot.setControlState(action, true);
-        console.log(`Moving: ${action}`);
         setTimeout(() => {
           bot.setControlState(action, false);
-          console.log(`Stopped moving: ${action}`);
         }, naturalMoveDuration()); // Move for a natural duration
         lastActionTime = currentTime;
       }
