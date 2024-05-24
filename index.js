@@ -98,11 +98,16 @@ function createBot() {
 }
 
 function reconnect() {
-  console.log(`Reconnection attempt ${reconnectAttempts + 1}...`);
-  setTimeout(() => {
-    reconnectAttempts++;
-    createBot();
-  }, reconnectInterval);
+  if (reconnectAttempts < maxReconnectAttempts) {
+    console.log(`Reconnection attempt ${reconnectAttempts + 1}...`);
+    setTimeout(() => {
+      reconnectAttempts++;
+      createBot();
+    }, reconnectInterval);
+  } else {
+    console.error("Max reconnect attempts reached. Exiting...");
+    process.exit(1);
+  }
 }
 
 function scheduleDisconnect() {
