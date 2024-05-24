@@ -1,6 +1,6 @@
 const mineflayer = require('mineflayer');
 const fs = require('fs');
-const keep_alive = require('./keep_alive.js'); // Ensure this file exists and is properly configured
+const keep_alive = require('./keep_alive.js'); // Ensure this file exists and properly configured
 
 // Function to read and parse config.json safely
 function readConfig() {
@@ -23,10 +23,11 @@ const host = data["ip"];
 const username = data["name"];
 const moveInterval = 20 * 1000; // Move every 20 seconds to prevent AFK
 const actions = ['forward', 'back', 'left', 'right'];
-const naturalMoveDuration = () => 1000 + Math.random() * 2000; // Move for 1-3 seconds
+const naturalMoveDuration = 1000 + Math.random() * 2000; // Move for 1-3 seconds
 
 let lastActionTime = -1;
 let reconnectAttempts = 0;
+const maxReconnectAttempts = 5;
 const reconnectInterval = 10 * 1000; // 10 seconds
 const disconnectInterval = 30 * 1000; // 30 seconds
 
@@ -90,7 +91,7 @@ function createBot() {
         setTimeout(() => {
           bot.setControlState(action, false);
           console.log(`Stopped moving: ${action}`);
-        }, naturalMoveDuration()); // Move for a natural duration
+        }, naturalMoveDuration); // Move for a natural duration
         lastActionTime = currentTime;
       }
     }, 1000); // Check every second
@@ -98,11 +99,16 @@ function createBot() {
 }
 
 function reconnect() {
-  console.log(`Reconnection attempt ${reconnectAttempts + 1}...`);
-  setTimeout(() => {
+  if (reconnectAttempts < maxReconnectAttempts) {
     reconnectAttempts++;
-    createBot();
-  }, reconnectInterval);
+    setTimeout(() => {
+      console.log(`Reconnection attempt ${reconnectAttempts}/${maxReconnectAttempts}...`);
+      createBot();
+    }, reconnectInterval);
+  } else {
+    console.error("Max reconnect attempts reached. Exiting...");
+    process.exit(1);
+  }
 }
 
 function scheduleDisconnect() {
