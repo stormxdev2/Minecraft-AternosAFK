@@ -1,92 +1,123 @@
-// made by stormxdev, forked from a nice guy actually but i edited it!
 const mineflayer = require('mineflayer');
-const cmd = require('mineflayer-cmd').plugin;
 const fs = require('fs');
-const keep_alive = require('./keep_alive.js');
-let rawdata = fs.readFileSync('config.json');
-let data = JSON.parse(rawdata);
+const keep_alive = require('./keep_alive.js'); // Ensure this file exists and properly configured
 
-var lasttime = -1;
-var moving = 0;
-var connected = false; // Use boolean to track connection state
-var actions = ['forward', 'back', 'left', 'right'];
-var lastaction;
-var pi = 3.14159;
-var moveinterval = 2; // 2 second movement interval
-var maxrandom = 5; // 0-5 seconds added to movement interval (randomly)
-var host = data["ip"];
-var username = data["name"];
-var nightskip = data["auto-night-skip"];
+// Function to read and parse config.json safely
+function readConfig() {
+  try {
+    let rawdata = fs.readFileSync('config.json');
+    return JSON.parse(rawdata);
+  } catch (error) {
+    console.error('Error reading config.json:', error);
+    return null;
+  }
+}
 
-function getRandomArbitrary(min, max) {
-    return Math.random() * (max - min) + min;
+const data = readConfig();
+if (!data) {
+  console.error('No valid config found, exiting.');
+  process.exit(1); // Exit if config is not found or invalid
+}
+
+const host = data["ip"];
+const username = data["name"];
+const moveInterval = 20 * 1000; // Move every 20 seconds to prevent AFK
+const actions = ['forward', 'back', 'left', 'right'];
+const naturalMoveDuration = 1000 + Math.random() * 2000; // Move for 1-3 seconds
+
+let lastActionTime = -1;
+let reconnectAttempts = 0;
+const maxReconnectAttempts = 5;
+const reconnectInterval = 10 * 1000; // 10 seconds
+const disconnectInterval = 30 * 1000; // 30 seconds
+
+let bot; // Declare bot variable to keep track of the bot instance
+
+function getRandomAction() {
+  return actions[Math.floor(Math.random() * actions.length)];
 }
 
 function createBot() {
-    const bot = mineflayer.createBot({
-        host: host,
-        username: username
-    });
+  bot = mineflayer.createBot({
+    host: host,
+    username: username,
+  });
 
-    bot.loadPlugin(cmd);
+  bot.on('login', () => {
+    console.log("Logged in");
+    reconnectAttempts = 0;
+    startMoving(bot);
+    scheduleDisconnect(); // Schedule the disconnect after 30 seconds
+  });
 
-    bot.on('login', function() {
-        console.log("Logged In");
-        connected = true;
-        bot.chat("hello");
-    });
+  bot.on('spawn', () => {
+    console.log("Spawned");
+  });
 
-    bot.on('time', function(time) {
-        if (nightskip == "true" && bot.time.timeOfDay >= 13000) {
-            bot.chat('/time set day');
-        }
+  bot.on('death', () => {
+    bot.emit("respawn");
+  });
 
-        if (!connected) return;
+  bot.on('kicked', (reason) => {
+    console.log("Kicked from the server:", reason);
+    reconnect();
+  });
 
-        if (lasttime < 0 || bot.time.age - lasttime > (moveinterval * 20 + Math.random() * maxrandom * 20)) {
-            const yaw = Math.random() * pi - (0.5 * pi);
-            const pitch = Math.random() * pi - (0.5 * pi);
-            lastaction = actions[Math.floor(Math.random() * actions.length)];
-            bot.look(yaw, pitch, false);
-            bot.setControlState(lastaction, true);
-            moving = true;
-            lasttime = bot.time.age;
-            bot.activateItem();
-        }
-    });
+  bot.on('end', () => {
+    console.log("Disconnected, attempting to reconnect...");
+    reconnect();
+  });
 
-    bot.on('spawn', function() {
-        connected = true;
-    });
+  bot.on('error', (err) => {
+    console.error("Error occurred:", err);
+    reconnect();
+  });
 
-    bot.on('death', function() {
-        bot.emit("respawn");
-    });
+  function startMoving(bot) {
+    setInterval(() => {
+      const currentTime = Date.now();
+      if (lastActionTime < 0 || currentTime - lastActionTime > moveInterval) {
+        const action = getRandomAction();
+        bot.setControlState(action, true);
+        console.log(`Moving: ${action}`);
+        setTimeout(() => {
+          bot.setControlState(action, false);
+          console.log(`Stopped moving: ${action}`);
+        }, naturalMoveDuration); // Move for a natural duration
+        lastActionTime = currentTime;
+      }
+    }, 1000); // Check every second
+  }
+}
 
-    bot.on('kicked', function(reason, loggedIn) {
-        console.log("Bot was kicked from the server. Reconnecting...");
-        connected = false;
-        setTimeout(createBot, 5000); // Reconnect after 5 seconds
-    });
+function reconnect() {
+  if (reconnectAttempts < maxReconnectAttempts) {
+    reconnectAttempts++;
+    setTimeout(() => {
+      console.log(`Reconnection attempt ${reconnectAttempts}/${maxReconnectAttempts}...`);
+      createBot();
+    }, reconnectInterval);
+  } else {
+    console.error("Max reconnect attempts reached. Exiting...");
+    process.exit(1);
+  }
+}
 
-    bot.on('error', function(err) {
-        console.log("Error occurred:", err);
-        console.log("Attempting to log in again...");
-        connected = false;
-        setTimeout(createBot, 5000); // Retry after 5 seconds on error
-    });
+function scheduleDisconnect() {
+  setTimeout(() => {
+    console.log("Disconnecting for scheduled restart...");
+    bot.quit();
+    const reconnectTime = 60 * 1000 + Math.random() * 30 * 1000; // 1 to 1.5 minutes
+    setTimeout(() => {
+      console.log("Reconnecting after scheduled restart...");
+      createBot();
+    }, reconnectTime);
+  }, disconnectInterval);
 }
 
 function startBot() {
-    console.log("Attempting to log in...");
-    createBot(); // Attempt to create a bot instance
+  console.log("Starting bot...");
+  createBot();
 }
 
-// Continuous login attempts
-function attemptLogin() {
-    startBot(); // Start attempting to log in
-}
-
-// Begin attempting to log in
-attemptLogin();
-
+startBot();
