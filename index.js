@@ -1,6 +1,6 @@
 const mineflayer = require('mineflayer');
 const fs = require('fs');
-const keep_alive = require('./keep_alive.js'); // Ensure this file exists and is properly configured
+const keep_alive = require('./keep_alive.js'); // Ensure this file exists and properly configured
 
 // Function to read and parse config.json safely
 function readConfig() {
@@ -25,13 +25,11 @@ const moveInterval = 20 * 1000; // Move every 20 seconds to prevent AFK
 const actions = ['forward', 'back', 'left', 'right'];
 const naturalMoveDuration = () => 1000 + Math.random() * 2000; // Move for 1-3 seconds
 
-let lastActionTime = -1;
+let bot; // Declare bot variable to keep track of the bot instance
 let reconnectAttempts = 0;
+const maxReconnectAttempts = 5;
 const reconnectInterval = 10 * 1000; // 10 seconds
 const disconnectInterval = 2 * 60 * 60 * 1000; // 2 hours in milliseconds
-
-let bot; // Declare bot variable to keep track of the bot instance
-let scheduledDisconnect = false; // Flag to indicate a scheduled disconnect
 
 function getRandomAction() {
   return actions[Math.floor(Math.random() * actions.length)];
@@ -46,7 +44,7 @@ function createBot() {
   bot.on('login', () => {
     console.log("Logged in");
     reconnectAttempts = 0;
-    startMoving(bot);
+    startMoving();
     scheduleDisconnect(); // Schedule the disconnect after 2 hours
   });
 
@@ -60,48 +58,37 @@ function createBot() {
 
   bot.on('kicked', (reason) => {
     console.log("Kicked from the server:", reason);
-    if (!scheduledDisconnect) {
-      reconnect();
-    }
+    reconnect();
   });
 
   bot.on('end', () => {
     console.log("Disconnected");
-    if (!scheduledDisconnect) {
-      console.log("Unexpected disconnection, attempting to reconnect...");
-      reconnect();
-    }
+    reconnect();
   });
 
   bot.on('error', (err) => {
     console.error("Error occurred:", err);
-    if (!scheduledDisconnect) {
-      reconnect();
-    }
+    reconnect();
   });
 
-  function startMoving(bot) {
+  function startMoving() {
     setInterval(() => {
-      const currentTime = Date.now();
-      if (lastActionTime < 0 || currentTime - lastActionTime > moveInterval) {
-        const action = getRandomAction();
-        bot.setControlState(action, true);
-        console.log(`Moving: ${action}`);
-        setTimeout(() => {
-          bot.setControlState(action, false);
-          console.log(`Stopped moving: ${action}`);
-        }, naturalMoveDuration()); // Move for a natural duration
-        lastActionTime = currentTime;
-      }
-    }, 1000); // Check every second
+      const action = getRandomAction();
+      bot.setControlState(action, true);
+      console.log(`Moving: ${action}`);
+      setTimeout(() => {
+        bot.setControlState(action, false);
+        console.log(`Stopped moving: ${action}`);
+      }, naturalMoveDuration()); // Move for a natural duration
+    }, moveInterval); // Move every 20 seconds
   }
 }
 
 function reconnect() {
   if (reconnectAttempts < maxReconnectAttempts) {
     console.log(`Reconnection attempt ${reconnectAttempts + 1}...`);
+    reconnectAttempts++;
     setTimeout(() => {
-      reconnectAttempts++;
       createBot();
     }, reconnectInterval);
   } else {
@@ -113,12 +100,10 @@ function reconnect() {
 function scheduleDisconnect() {
   setTimeout(() => {
     console.log("Disconnecting for scheduled restart...");
-    scheduledDisconnect = true; // Indicate that this is a scheduled disconnect
     bot.quit();
     const reconnectTime = 60 * 1000 + Math.random() * 30 * 1000; // 1 to 1.5 minutes
     setTimeout(() => {
       console.log("Reconnecting after scheduled restart...");
-      scheduledDisconnect = false; // Reset the flag before reconnecting
       reconnectAttempts = 0; // Reset reconnect attempts after scheduled disconnect
       createBot();
     }, reconnectTime);
