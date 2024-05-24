@@ -23,12 +23,13 @@ const host = data["ip"];
 const username = data["name"];
 const moveInterval = 20 * 1000; // Move every 20 seconds to prevent AFK
 const actions = ['forward', 'back', 'left', 'right'];
+const naturalMoveDuration = 1000 + Math.random() * 2000; // Move for 1-3 seconds
 
 let lastActionTime = -1;
 let reconnectAttempts = 0;
 const maxReconnectAttempts = 5;
 const reconnectInterval = 10 * 1000; // 10 seconds
-const disconnectInterval = 2 * 60 * 1000; // 2 minutes
+const disconnectInterval = 30 * 1000; // 30 seconds
 
 let bot; // Declare bot variable to keep track of the bot instance
 
@@ -46,7 +47,7 @@ function createBot() {
     console.log("Logged in");
     reconnectAttempts = 0;
     startMoving(bot);
-    scheduleDisconnect(); // Schedule the disconnect after 2 minutes
+    scheduleDisconnect(); // Schedule the disconnect after 30 seconds
   });
 
   bot.on('spawn', () => {
@@ -82,7 +83,7 @@ function createBot() {
         setTimeout(() => {
           bot.setControlState(action, false);
           console.log(`Stopped moving: ${action}`);
-        }, 500); // Move for 0.5 seconds
+        }, naturalMoveDuration); // Move for a natural duration
         lastActionTime = currentTime;
       }
     }, 1000); // Check every second
