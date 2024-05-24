@@ -28,13 +28,16 @@ let lastActionTime = -1;
 let reconnectAttempts = 0;
 const maxReconnectAttempts = 5;
 const reconnectInterval = 10 * 1000; // 10 seconds
+const disconnectInterval = 2 * 60 * 1000; // 2 minutes
+
+let bot; // Declare bot variable to keep track of the bot instance
 
 function getRandomAction() {
   return actions[Math.floor(Math.random() * actions.length)];
 }
 
 function createBot() {
-  const bot = mineflayer.createBot({
+  bot = mineflayer.createBot({
     host: host,
     username: username,
   });
@@ -43,6 +46,7 @@ function createBot() {
     console.log("Logged in");
     reconnectAttempts = 0;
     startMoving(bot);
+    scheduleDisconnect(); // Schedule the disconnect after 2 minutes
   });
 
   bot.on('spawn', () => {
@@ -55,17 +59,17 @@ function createBot() {
 
   bot.on('kicked', (reason) => {
     console.log("Kicked from the server:", reason);
-    reconnect(bot);
+    reconnect();
   });
 
   bot.on('end', () => {
     console.log("Disconnected, attempting to reconnect...");
-    reconnect(bot);
+    reconnect();
   });
 
   bot.on('error', (err) => {
     console.error("Error occurred:", err);
-    reconnect(bot);
+    reconnect();
   });
 
   function startMoving(bot) {
@@ -85,7 +89,7 @@ function createBot() {
   }
 }
 
-function reconnect(bot) {
+function reconnect() {
   if (reconnectAttempts < maxReconnectAttempts) {
     reconnectAttempts++;
     setTimeout(() => {
@@ -96,6 +100,18 @@ function reconnect(bot) {
     console.error("Max reconnect attempts reached. Exiting...");
     process.exit(1);
   }
+}
+
+function scheduleDisconnect() {
+  setTimeout(() => {
+    console.log("Disconnecting for scheduled restart...");
+    bot.quit();
+    const reconnectTime = 60 * 1000 + Math.random() * 30 * 1000; // 1 to 1.5 minutes
+    setTimeout(() => {
+      console.log("Reconnecting after scheduled restart...");
+      createBot();
+    }, reconnectTime);
+  }, disconnectInterval);
 }
 
 function startBot() {
