@@ -24,15 +24,21 @@ const username = data["name"];
 const moveInterval = 20 * 1000; // Move every 20 seconds to prevent AFK
 const actions = ['forward', 'back', 'left', 'right'];
 const naturalMoveDuration = () => 1000 + Math.random() * 2000; // Move for 1-3 seconds
+const disconnectInterval = 60 * 1000; // 1 minute in milliseconds
+const chatInterval = 20 * 60 * 1000; // 20 minutes in milliseconds
+const randomMessages = ["Hello!", "How's everyone?", "What a nice day!", "Anyone up for a game?", "Just chilling here!", "What's new?", "Happy mining!"];
 
 let bot; // Declare bot variable to keep track of the bot instance
 let reconnectAttempts = 0;
 const maxReconnectAttempts = 5;
 const reconnectInterval = 10 * 1000; // 10 seconds
-const disconnectInterval = 2 * 60 * 60 * 1000; // 2 hours in milliseconds
 
 function getRandomAction() {
   return actions[Math.floor(Math.random() * actions.length)];
+}
+
+function getRandomMessage() {
+  return randomMessages[Math.floor(Math.random() * randomMessages.length)];
 }
 
 function createBot() {
@@ -45,7 +51,8 @@ function createBot() {
     console.log("Logged in");
     reconnectAttempts = 0;
     startMoving();
-    scheduleDisconnect(); // Schedule the disconnect after 2 hours
+    scheduleDisconnect(); // Schedule the disconnect after 1 minute
+    scheduleChatMessages(); // Schedule random chat messages every 20 minutes
   });
 
   bot.on('spawn', () => {
@@ -81,6 +88,14 @@ function createBot() {
         console.log(`Stopped moving: ${action}`);
       }, naturalMoveDuration()); // Move for a natural duration
     }, moveInterval); // Move every 20 seconds
+  }
+
+  function scheduleChatMessages() {
+    setInterval(() => {
+      const message = getRandomMessage();
+      bot.chat(message);
+      console.log(`Sent message: ${message}`);
+    }, chatInterval);
   }
 }
 
