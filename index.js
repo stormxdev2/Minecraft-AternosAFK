@@ -20,11 +20,12 @@ if (!data) {
 }
 
 const host = data["ip"];
+const port = data["port"] || 25565; // Default Minecraft port is 25565
 const username = data["name"];
 const moveInterval = 20 * 1000; // Move every 20 seconds to prevent AFK
 const actions = ['forward', 'back', 'left', 'right'];
 const naturalMoveDuration = () => 1000 + Math.random() * 2000; // Move for 1-3 seconds
-const disconnectInterval = 60 * 1000; // 1 minute in milliseconds
+const disconnectInterval = 2 * 60 * 60 * 1000; // 2 hours in milliseconds
 const chatInterval = 20 * 60 * 1000; // 20 minutes in milliseconds
 const randomMessages = ["Hello!", "How's everyone?", "What a nice day!", "Anyone up for a game?", "Just chilling here!", "What's new?", "Happy mining!"];
 
@@ -44,6 +45,7 @@ function getRandomMessage() {
 function createBot() {
   bot = mineflayer.createBot({
     host: host,
+    port: port, // Ensure the port is used if specified
     username: username,
   });
 
@@ -51,7 +53,7 @@ function createBot() {
     console.log("Logged in");
     reconnectAttempts = 0;
     startMoving();
-    scheduleDisconnect(); // Schedule the disconnect after 1 minute
+    scheduleDisconnect(); // Schedule the disconnect after 2 hours
     scheduleChatMessages(); // Schedule random chat messages every 20 minutes
   });
 
