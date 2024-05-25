@@ -1,6 +1,6 @@
 const mineflayer = require('mineflayer');
 const fs = require('fs');
-const keep_alive = require('./keep_alive.js'); // Ensure this file exists and properly configured
+const keep_alive = require('./keep_alive.js'); // Ensure this file exists and is properly configured
 
 // Function to read and parse config.json safely
 function readConfig() {
@@ -58,17 +58,17 @@ function createBot() {
 
   bot.on('kicked', (reason) => {
     console.log("Kicked from the server:", reason);
-    reconnect();
+    attemptReconnect();
   });
 
   bot.on('end', () => {
     console.log("Disconnected");
-    reconnect();
+    attemptReconnect();
   });
 
   bot.on('error', (err) => {
     console.error("Error occurred:", err);
-    reconnect();
+    attemptReconnect();
   });
 
   function startMoving() {
@@ -84,11 +84,11 @@ function createBot() {
   }
 }
 
-function reconnect() {
+function attemptReconnect() {
   if (reconnectAttempts < maxReconnectAttempts) {
-    console.log(`Reconnection attempt ${reconnectAttempts + 1}...`);
     reconnectAttempts++;
     setTimeout(() => {
+      console.log(`Reconnection attempt ${reconnectAttempts}/${maxReconnectAttempts}...`);
       createBot();
     }, reconnectInterval);
   } else {
@@ -101,12 +101,11 @@ function scheduleDisconnect() {
   setTimeout(() => {
     console.log("Disconnecting for scheduled restart...");
     bot.quit();
-    const reconnectTime = 60 * 1000 + Math.random() * 30 * 1000; // 1 to 1.5 minutes
     setTimeout(() => {
       console.log("Reconnecting after scheduled restart...");
       reconnectAttempts = 0; // Reset reconnect attempts after scheduled disconnect
       createBot();
-    }, reconnectTime);
+    }, 60 * 1000 + Math.random() * 30 * 1000); // Wait for 1 to 1.5 minutes before reconnecting
   }, disconnectInterval);
 }
 
