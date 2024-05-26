@@ -93,7 +93,7 @@ function createBot() {
 
   function startMoving() {
     setInterval(() => {
-      if (!bot || !bot.setControlState) {
+      if (!bot || typeof bot.setControlState !== 'function') {
         console.error('Bot is not initialized or setControlState is not a function');
         return;
       }
@@ -101,7 +101,7 @@ function createBot() {
       bot.setControlState(action, true);
       console.log(`Moving: ${action}`);
       setTimeout(() => {
-        if (bot && bot.setControlState) {
+        if (bot && typeof bot.setControlState === 'function') {
           bot.setControlState(action, false);
           console.log(`Stopped moving: ${action}`);
         }
@@ -148,7 +148,7 @@ function attemptReconnect(reason) {
 function scheduleDisconnect() {
   setTimeout(() => {
     console.log("Disconnecting for scheduled restart...");
-    bot.quit();
+    if (bot) bot.quit();
     setTimeout(() => {
       console.log("Reconnecting after scheduled restart...");
       reconnectAttempts = 0; // Reset reconnect attempts after scheduled disconnect
