@@ -1,6 +1,6 @@
 {
-	"ip":"VIDEOTESTX.aternos.me",
-	"port": "32117",
-	"name": "CYBER","Notch","THECEO","NOTABOT",
-	"auto-night-skip":"true"
+  "ip": "VIDEOTESTX.aternos.me",
+  "port": 32117,
+  "names": ["CYBER", "Notch", "THECEO", "NOTABOT"],
+  "auto-night-skip": "true"
 }
