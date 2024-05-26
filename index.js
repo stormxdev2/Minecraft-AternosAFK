@@ -20,14 +20,19 @@ if (!data) {
 }
 
 const host = data["ip"];
-const port = data["port"] || 25565; // Default Minecraft port is 25565
-const username = data["name"];
+const port = data["port"];
+const names = data["names"];
 const moveInterval = 20 * 1000; // Move every 20 seconds to prevent AFK
 const actions = ['forward', 'back', 'left', 'right'];
 const naturalMoveDuration = () => 1000 + Math.random() * 2000; // Move for 1-3 seconds
-const disconnectInterval = 2 * 60 * 60 * 1000; // 2 hours in milliseconds
-const chatInterval = 20 * 60 * 1000; // 20 minutes in milliseconds
-const randomMessages = ["Hello!", "How's everyone?", "What a nice day!", "Anyone up for a game?", "Just chilling here!", "What's new?", "Happy mining!"];
+const disconnectInterval = 1 * 60 * 60 * 1000; // 1 hour in milliseconds
+const chatInterval = 10 * 60 * 1000; // 10 minutes in milliseconds
+const randomMessages = [
+  "Hello!", "How's everyone?", "What a nice day!", "Anyone up for a game?",
+  "Just chilling here!", "What's new?", "Happy mining!", "How's the weather in Minecraft?",
+  "Anyone need help?", "Let's build something cool!", "Exploring is fun!", "Mining time!",
+  "Watch out for creepers!", "Does anyone have diamonds?", "What's your favorite block?"
+];
 
 let bot; // Declare bot variable to keep track of the bot instance
 let reconnectAttempts = 0;
@@ -42,19 +47,25 @@ function getRandomMessage() {
   return randomMessages[Math.floor(Math.random() * randomMessages.length)];
 }
 
+function getRandomName() {
+  return names[Math.floor(Math.random() * names.length)];
+}
+
 function createBot() {
+  const username = getRandomName();
+
   bot = mineflayer.createBot({
     host: host,
-    port: port, // Ensure the port is used if specified
+    port: port,
     username: username,
   });
 
   bot.on('login', () => {
-    console.log("Logged in");
+    console.log("Logged in as", username);
     reconnectAttempts = 0;
     startMoving();
-    scheduleDisconnect(); // Schedule the disconnect after 2 hours
-    scheduleChatMessages(); // Schedule random chat messages every 20 minutes
+    scheduleDisconnect(); // Schedule the disconnect after 1 hour
+    scheduleChatMessages(); // Schedule random chat messages every 10 minutes
   });
 
   bot.on('spawn', () => {
@@ -122,7 +133,7 @@ function scheduleDisconnect() {
       console.log("Reconnecting after scheduled restart...");
       reconnectAttempts = 0; // Reset reconnect attempts after scheduled disconnect
       createBot();
-    }, 60 * 1000 + Math.random() * 30 * 1000); // Wait for 1 to 1.5 minutes before reconnecting
+    }, 60 * 1000); // Wait for 1 minute before reconnecting
   }, disconnectInterval);
 }
 
