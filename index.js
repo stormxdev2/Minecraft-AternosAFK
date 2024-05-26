@@ -78,7 +78,7 @@ function createBot() {
 
   bot.on('kicked', (reason) => {
     console.log("Kicked from the server:", reason);
-    attemptReconnect();
+    attemptReconnect(reason);
   });
 
   bot.on('end', () => {
@@ -88,17 +88,23 @@ function createBot() {
 
   bot.on('error', (err) => {
     console.error("Error occurred:", err);
-    attemptReconnect();
+    attemptReconnect(err);
   });
 
   function startMoving() {
     setInterval(() => {
+      if (!bot || !bot.setControlState) {
+        console.error('Bot is not initialized or setControlState is not a function');
+        return;
+      }
       const action = getRandomAction();
       bot.setControlState(action, true);
       console.log(`Moving: ${action}`);
       setTimeout(() => {
-        bot.setControlState(action, false);
-        console.log(`Stopped moving: ${action}`);
+        if (bot && bot.setControlState) {
+          bot.setControlState(action, false);
+          console.log(`Stopped moving: ${action}`);
+        }
       }, naturalMoveDuration()); // Move for a natural duration
     }, moveInterval); // Move every 20 seconds
   }
@@ -112,16 +118,30 @@ function createBot() {
   }
 }
 
-function attemptReconnect() {
-  if (reconnectAttempts < maxReconnectAttempts) {
+function attemptReconnect(reason) {
+  if (reason && reason.includes('throttled')) {
+    console.log('Throttled by server, waiting before next reconnect...');
     reconnectAttempts++;
     setTimeout(() => {
-      console.log(`Reconnection attempt ${reconnectAttempts}/${maxReconnectAttempts}...`);
-      createBot();
-    }, reconnectInterval);
+      if (reconnectAttempts < maxReconnectAttempts) {
+        console.log(`Reconnection attempt ${reconnectAttempts}/${maxReconnectAttempts}...`);
+        createBot();
+      } else {
+        console.error("Max reconnect attempts reached. Exiting...");
+        process.exit(1);
+      }
+    }, reconnectInterval * 3); // Wait longer if throttled
   } else {
-    console.error("Max reconnect attempts reached. Exiting...");
-    process.exit(1);
+    if (reconnectAttempts < maxReconnectAttempts) {
+      reconnectAttempts++;
+      setTimeout(() => {
+        console.log(`Reconnection attempt ${reconnectAttempts}/${maxReconnectAttempts}...`);
+        createBot();
+      }, reconnectInterval);
+    } else {
+      console.error("Max reconnect attempts reached. Exiting...");
+      process.exit(1);
+    }
   }
 }
 
