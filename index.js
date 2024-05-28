@@ -5,7 +5,7 @@ const keep_alive = require('./keep_alive.js'); // Ensure this file exists and is
 // Function to read and parse config.json safely
 function readConfig() {
   try {
-    let rawdata = fs.readFileSync('config.json');
+    const rawdata = fs.readFileSync('config.json');
     return JSON.parse(rawdata);
   } catch (error) {
     console.error('Error reading config.json:', error);
@@ -20,7 +20,7 @@ if (!data) {
 }
 
 const host = data["ip"];
-const port = data["port"];
+const port = parseInt(data["port"], 10);
 const names = data["names"];
 const moveInterval = 20 * 1000; // Move every 20 seconds to prevent AFK
 const actions = ['forward', 'back', 'left', 'right'];
@@ -99,11 +99,9 @@ function createBot() {
       }
       const action = getRandomAction();
       bot.setControlState(action, true);
-      console.log(`Moving: ${action}`);
       setTimeout(() => {
         if (bot && typeof bot.setControlState === 'function') {
           bot.setControlState(action, false);
-          console.log(`Stopped moving: ${action}`);
         }
       }, naturalMoveDuration()); // Move for a natural duration
     }, moveInterval); // Move every 20 seconds
@@ -153,7 +151,7 @@ function scheduleDisconnect() {
       console.log("Reconnecting after scheduled restart...");
       reconnectAttempts = 0; // Reset reconnect attempts after scheduled disconnect
       createBot();
-    }, 60 * 1000); // Wait for 1 minute before reconnecting
+    }, 40 * 1000); // Wait for 40 seconds before reconnecting
   }, disconnectInterval);
 }
 
