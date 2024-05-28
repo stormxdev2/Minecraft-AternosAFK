@@ -117,7 +117,15 @@ function createBot() {
 }
 
 function attemptReconnect(reason) {
-  if (reason && reason.includes('throttled')) {
+  let reasonString = '';
+
+  if (typeof reason === 'string') {
+    reasonString = reason;
+  } else if (reason && reason.value && reason.value.translate) {
+    reasonString = reason.value.translate;
+  }
+
+  if (reasonString.includes('throttled')) {
     console.log('Throttled by server, waiting before next reconnect...');
     reconnectAttempts++;
     setTimeout(() => {
