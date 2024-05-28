@@ -9,8 +9,9 @@
   "author": "MannuG",
   "license": "ISC",
   "dependencies": {
-    "mineflayer": "^4.4.0",
-    "mineflayer-pathfinder": "^1.4.0",
-    "mineflayer-tool": "^1.0.1"
+    "config": "^3.3.6",
+    "mineflayer": "^4.5.0",
+    "mineflayer-blockfinder": "^0.0.9",
+    "mineflayer-cmd": "^1.0.2"
   }
 }
