@@ -1,12 +1,18 @@
 const mineflayer = require('mineflayer');
 const fs = require('fs');
+const path = require('path');
 const keep_alive = require('./keep_alive.js'); // Ensure this file exists and is properly configured
 
 // Function to read and parse config.json safely
 function readConfig() {
+  const configPath = path.resolve(__dirname, 'config.json');
   try {
-    const rawdata = fs.readFileSync('config.json');
-    return JSON.parse(rawdata);
+    const rawdata = fs.readFileSync(configPath);
+    const config = JSON.parse(rawdata);
+    if (!config.ip || !config.port || !Array.isArray(config.names) || config.names.length === 0) {
+      throw new Error('Invalid config format.');
+    }
+    return config;
   } catch (error) {
     console.error('Error reading config.json:', error);
     return null;
@@ -38,6 +44,7 @@ let bot; // Declare bot variable to keep track of the bot instance
 let reconnectAttempts = 0;
 const maxReconnectAttempts = 5;
 const reconnectInterval = 10 * 1000; // 10 seconds
+let moveIntervalId, chatIntervalId, disconnectTimeoutId;
 
 function getRandomAction() {
   return actions[Math.floor(Math.random() * actions.length)];
@@ -83,6 +90,7 @@ function createBot() {
 
   bot.on('end', () => {
     console.log("Disconnected");
+    cleanupIntervals();
     attemptReconnect();
   });
 
@@ -90,30 +98,32 @@ function createBot() {
     console.error("Error occurred:", err);
     attemptReconnect(err);
   });
+}
 
-  function startMoving() {
-    setInterval(() => {
-      if (!bot || typeof bot.setControlState !== 'function') {
-        console.error('Bot is not initialized or setControlState is not a function');
-        return;
+function startMoving() {
+  moveIntervalId = setInterval(() => {
+    if (!bot || typeof bot.setControlState !== 'function') {
+      console.error('Bot is not initialized or setControlState is not a function');
+      return;
+    }
+    const action = getRandomAction();
+    bot.setControlState(action, true);
+    setTimeout(() => {
+      if (bot && typeof bot.setControlState === 'function') {
+        bot.setControlState(action, false);
       }
-      const action = getRandomAction();
-      bot.setControlState(action, true);
-      setTimeout(() => {
-        if (bot && typeof bot.setControlState === 'function') {
-          bot.setControlState(action, false);
-        }
-      }, naturalMoveDuration()); // Move for a natural duration
-    }, moveInterval); // Move every 20 seconds
-  }
+    }, naturalMoveDuration()); // Move for a natural duration
+  }, moveInterval); // Move every 20 seconds
+}
 
-  function scheduleChatMessages() {
-    setInterval(() => {
-      const message = getRandomMessage();
+function scheduleChatMessages() {
+  chatIntervalId = setInterval(() => {
+    const message = getRandomMessage();
+    if (bot && typeof bot.chat === 'function') {
       bot.chat(message);
       console.log(`Sent message: ${message}`);
-    }, chatInterval);
-  }
+    }
+  }, chatInterval);
 }
 
 function attemptReconnect(reason) {
@@ -152,7 +162,7 @@ function attemptReconnect(reason) {
 }
 
 function scheduleDisconnect() {
-  setTimeout(() => {
+  disconnectTimeoutId = setTimeout(() => {
     console.log("Disconnecting for scheduled restart...");
     if (bot) bot.quit();
     setTimeout(() => {
@@ -161,6 +171,12 @@ function scheduleDisconnect() {
       createBot();
     }, 40 * 1000); // Wait for 40 seconds before reconnecting
   }, disconnectInterval);
+}
+
+function cleanupIntervals() {
+  if (moveIntervalId) clearInterval(moveIntervalId);
+  if (chatIntervalId) clearInterval(chatIntervalId);
+  if (disconnectTimeoutId) clearTimeout(disconnectTimeoutId);
 }
 
 function startBot() {
