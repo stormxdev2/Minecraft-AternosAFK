@@ -125,7 +125,7 @@ function attemptReconnect(reason) {
     reasonString = reason.value.translate;
   }
 
-  if (typeof reasonString === 'string' && reasonString.includes('throttled')) {
+  if (reasonString.includes('throttled')) {
     console.log('Throttled by server, waiting before next reconnect...');
     reconnectAttempts++;
     setTimeout(() => {
