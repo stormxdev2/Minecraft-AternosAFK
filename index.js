@@ -45,7 +45,7 @@ let reconnectAttempts = 0;
 const maxReconnectAttempts = 5;
 const reconnectInterval = 10 * 1000; // 10 seconds
 let moveIntervalId, chatIntervalId, disconnectTimeoutId;
-let scheduledRestart = false; // Flag to indicate if disconnect is scheduled
+let scheduledDisconnect = false; // Flag to indicate if the disconnect is scheduled
 
 function getRandomAction() {
   return actions[Math.floor(Math.random() * actions.length)];
@@ -86,21 +86,22 @@ function createBot() {
 
   bot.on('kicked', (reason) => {
     console.log("Kicked from the server:", reason);
-    if (scheduledRestart) return; // If scheduled restart, do nothing
     attemptReconnect(reason);
   });
 
   bot.on('end', () => {
     console.log("Disconnected");
     cleanupIntervals();
-    if (scheduledRestart) return; // If scheduled restart, do nothing
-    attemptReconnect();
+    if (!scheduledDisconnect) {
+      attemptReconnect();
+    }
   });
 
   bot.on('error', (err) => {
     console.error("Error occurred:", err);
-    if (scheduledRestart) return; // If scheduled restart, do nothing
-    attemptReconnect(err);
+    if (!scheduledDisconnect) {
+      attemptReconnect(err);
+    }
   });
 }
 
@@ -168,12 +169,12 @@ function attemptReconnect(reason) {
 function scheduleDisconnect() {
   disconnectTimeoutId = setTimeout(() => {
     console.log("Disconnecting for scheduled restart...");
-    scheduledRestart = true; // Set flag for scheduled restart
+    scheduledDisconnect = true;
     if (bot) bot.quit();
     setTimeout(() => {
       console.log("Reconnecting after scheduled restart...");
+      scheduledDisconnect = false;
       reconnectAttempts = 0; // Reset reconnect attempts after scheduled disconnect
-      scheduledRestart = false; // Reset flag after reconnecting
       createBot();
     }, 40 * 1000); // Wait for 40 seconds before reconnecting
   }, disconnectInterval);
