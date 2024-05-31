@@ -38,6 +38,7 @@ let bot; // Declare bot variable to keep track of the bot instance
 let reconnectAttempts = 0;
 const maxReconnectAttempts = 5;
 const reconnectInterval = 10 * 1000; // 10 seconds
+let scheduledDisconnect = false;
 
 function getRandomAction() {
   return actions[Math.floor(Math.random() * actions.length)];
@@ -83,7 +84,9 @@ function createBot() {
 
   bot.on('end', () => {
     console.log("Disconnected");
-    attemptReconnect();
+    if (!scheduledDisconnect) {
+      attemptReconnect();
+    }
   });
 
   bot.on('error', (err) => {
@@ -154,9 +157,11 @@ function attemptReconnect(reason) {
 function scheduleDisconnect() {
   setTimeout(() => {
     console.log("Disconnecting for scheduled restart...");
+    scheduledDisconnect = true;
     if (bot) bot.quit();
     setTimeout(() => {
       console.log("Reconnecting after scheduled restart...");
+      scheduledDisconnect = false;
       reconnectAttempts = 0; // Reset reconnect attempts after scheduled disconnect
       createBot();
     }, 40 * 1000); // Wait for 40 seconds before reconnecting
