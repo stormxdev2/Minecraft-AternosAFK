@@ -44,7 +44,6 @@ let bot; // Declare bot variable to keep track of the bot instance
 let reconnectAttempts = 0;
 const maxReconnectAttempts = 5;
 const reconnectInterval = 10 * 1000; // 10 seconds
-let moveIntervalId, chatIntervalId, disconnectTimeoutId;
 let scheduledRestart = false; // Flag to indicate if disconnect is scheduled
 
 function getRandomAction() {
@@ -59,56 +58,66 @@ function getRandomName() {
   return names[Math.floor(Math.random() * names.length)];
 }
 
-function createBot() {
+function startBot() {
   const username = getRandomName();
-
   bot = mineflayer.createBot({
     host: host,
     port: port,
     username: username,
   });
 
-  bot.on('login', () => {
-    console.log(`Logged in as ${username}`);
-    reconnectAttempts = 0;
-    startMoving();
-    scheduleDisconnect(); // Schedule the disconnect after 1 hour
-    scheduleChatMessages(); // Schedule random chat messages every 10 minutes
-  });
+  setupEventListeners();
+}
 
-  bot.on('spawn', () => {
-    console.log("Spawned");
-  });
+function setupEventListeners() {
+  bot.on('login', onLogin);
+  bot.on('spawn', onSpawn);
+  bot.on('death', onDeath);
+  bot.on('kicked', onKicked);
+  bot.on('end', onEnd);
+  bot.on('error', onError);
+}
 
-  bot.on('death', () => {
-    bot.emit("respawn");
-  });
+function onLogin() {
+  console.log(`Logged in as ${bot.username}`);
+  reconnectAttempts = 0;
+  startMoving();
+  scheduleDisconnect(); // Schedule the disconnect after 1 hour
+  scheduleChatMessages(); // Schedule random chat messages every 10 minutes
+}
 
-  bot.on('kicked', (reason) => {
-    console.log(`Kicked from the server: ${JSON.stringify(reason)}`);
-    if (!scheduledRestart) {
-      attemptReconnect(reason);
-    }
-  });
+function onSpawn() {
+  console.log("Spawned");
+}
 
-  bot.on('end', () => {
-    console.log("Disconnected");
-    cleanupIntervals();
-    if (!scheduledRestart) {
-      attemptReconnect();
-    }
-  });
+function onDeath() {
+  bot.emit("respawn");
+}
 
-  bot.on('error', (err) => {
-    console.error(`Error occurred: ${err}`);
-    if (!scheduledRestart) {
-      attemptReconnect(err);
-    }
-  });
+function onKicked(reason) {
+  console.log(`Kicked from the server: ${JSON.stringify(reason)}`);
+  if (!scheduledRestart) {
+    attemptReconnect(reason);
+  }
+}
+
+function onEnd() {
+  console.log("Disconnected");
+  cleanupIntervals();
+  if (!scheduledRestart) {
+    attemptReconnect();
+  }
+}
+
+function onError(err) {
+  console.error(`Error occurred: ${err}`);
+  if (!scheduledRestart) {
+    attemptReconnect(err);
+  }
 }
 
 function startMoving() {
-  moveIntervalId = setInterval(() => {
+  setInterval(() => {
     if (!bot || typeof bot.setControlState !== 'function') {
       console.error('Bot is not initialized or setControlState is not a function');
       return;
@@ -124,7 +133,7 @@ function startMoving() {
 }
 
 function scheduleChatMessages() {
-  chatIntervalId = setInterval(() => {
+  setInterval(() => {
     const message = getRandomMessage();
     if (bot && typeof bot.chat === 'function') {
       bot.chat(message);
@@ -148,7 +157,7 @@ function attemptReconnect(reason) {
     setTimeout(() => {
       if (reconnectAttempts < maxReconnectAttempts) {
         console.log(`Reconnection attempt ${reconnectAttempts}/${maxReconnectAttempts}...`);
-        createBot();
+        startBot();
       } else {
         console.error("Max reconnect attempts reached. Exiting...");
         process.exit(1);
@@ -159,7 +168,7 @@ function attemptReconnect(reason) {
       reconnectAttempts++;
       setTimeout(() => {
         console.log(`Reconnection attempt ${reconnectAttempts}/${maxReconnectAttempts}...`);
-        createBot();
+        startBot();
       }, reconnectInterval);
     } else {
       console.error("Max reconnect attempts reached. Exiting...");
@@ -169,7 +178,7 @@ function attemptReconnect(reason) {
 }
 
 function scheduleDisconnect() {
-  disconnectTimeoutId = setTimeout(() => {
+  setTimeout(() => {
     console.log("Disconnecting for scheduled restart...");
     scheduledRestart = true; // Set flag for scheduled restart
     if (bot) bot.quit();
@@ -177,20 +186,15 @@ function scheduleDisconnect() {
       console.log("Reconnecting after scheduled restart...");
       reconnectAttempts = 0; // Reset reconnect attempts after scheduled disconnect
       scheduledRestart = false; // Reset flag after reconnecting
-      createBot();
+      startBot();
     }, 40 * 1000); // Wait for 40 seconds before reconnecting
   }, disconnectInterval);
 }
 
 function cleanupIntervals() {
-  if (moveIntervalId) clearInterval(moveIntervalId);
-  if (chatIntervalId) clearInterval(chatIntervalId);
-  if (disconnectTimeoutId) clearTimeout(disconnectTimeoutId);
-}
-
-function startBot() {
-  console.log("Starting bot...");
-  createBot();
+  clearInterval(moveIntervalId);
+  clearInterval(chatIntervalId);
+  clearTimeout(disconnectTimeoutId);
 }
 
 startBot();
