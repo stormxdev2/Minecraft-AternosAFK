@@ -45,7 +45,7 @@ let reconnectAttempts = 0;
 const maxReconnectAttempts = 5;
 const reconnectInterval = 10 * 1000; // 10 seconds
 let moveIntervalId, chatIntervalId, disconnectTimeoutId;
-let scheduledDisconnect = false; // Flag to indicate if the disconnect is scheduled
+let scheduledRestart = false; // Flag to indicate if disconnect is scheduled
 
 function getRandomAction() {
   return actions[Math.floor(Math.random() * actions.length)];
@@ -69,7 +69,7 @@ function createBot() {
   });
 
   bot.on('login', () => {
-    console.log("Logged in as", username);
+    console.log(`Logged in as ${username}`);
     reconnectAttempts = 0;
     startMoving();
     scheduleDisconnect(); // Schedule the disconnect after 1 hour
@@ -85,21 +85,23 @@ function createBot() {
   });
 
   bot.on('kicked', (reason) => {
-    console.log("Kicked from the server:", reason);
-    attemptReconnect(reason);
+    console.log(`Kicked from the server: ${JSON.stringify(reason)}`);
+    if (!scheduledRestart) {
+      attemptReconnect(reason);
+    }
   });
 
   bot.on('end', () => {
     console.log("Disconnected");
     cleanupIntervals();
-    if (!scheduledDisconnect) {
+    if (!scheduledRestart) {
       attemptReconnect();
     }
   });
 
   bot.on('error', (err) => {
-    console.error("Error occurred:", err);
-    if (!scheduledDisconnect) {
+    console.error(`Error occurred: ${err}`);
+    if (!scheduledRestart) {
       attemptReconnect(err);
     }
   });
@@ -169,12 +171,12 @@ function attemptReconnect(reason) {
 function scheduleDisconnect() {
   disconnectTimeoutId = setTimeout(() => {
     console.log("Disconnecting for scheduled restart...");
-    scheduledDisconnect = true;
+    scheduledRestart = true; // Set flag for scheduled restart
     if (bot) bot.quit();
     setTimeout(() => {
       console.log("Reconnecting after scheduled restart...");
-      scheduledDisconnect = false;
       reconnectAttempts = 0; // Reset reconnect attempts after scheduled disconnect
+      scheduledRestart = false; // Reset flag after reconnecting
       createBot();
     }, 40 * 1000); // Wait for 40 seconds before reconnecting
   }, disconnectInterval);
