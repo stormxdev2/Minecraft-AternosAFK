@@ -25,9 +25,9 @@ if (!data) {
   process.exit(1); // Exit if config is not found or invalid
 }
 
-const host = data["ip"];
-const port = parseInt(data["port"], 10);
-const names = data["names"];
+const host = data.ip;
+const port = parseInt(data.port, 10);
+const names = data.names;
 const moveInterval = 20 * 1000; // Move every 20 seconds to prevent AFK
 const actions = ['forward', 'back', 'left', 'right'];
 const naturalMoveDuration = () => 1000 + Math.random() * 2000; // Move for 1-3 seconds
@@ -45,6 +45,7 @@ let reconnectAttempts = 0;
 const maxReconnectAttempts = 5;
 const reconnectInterval = 10 * 1000; // 10 seconds
 let scheduledRestart = false; // Flag to indicate if disconnect is scheduled
+let moveIntervalId, chatIntervalId, disconnectTimeoutId; // Track interval and timeout IDs
 
 function getRandomAction() {
   return actions[Math.floor(Math.random() * actions.length)];
@@ -117,7 +118,7 @@ function onError(err) {
 }
 
 function startMoving() {
-  setInterval(() => {
+  moveIntervalId = setInterval(() => {
     if (!bot || typeof bot.setControlState !== 'function') {
       console.error('Bot is not initialized or setControlState is not a function');
       return;
@@ -133,7 +134,7 @@ function startMoving() {
 }
 
 function scheduleChatMessages() {
-  setInterval(() => {
+  chatIntervalId = setInterval(() => {
     const message = getRandomMessage();
     if (bot && typeof bot.chat === 'function') {
       bot.chat(message);
@@ -178,16 +179,13 @@ function attemptReconnect(reason) {
 }
 
 function scheduleDisconnect() {
-  setTimeout(() => {
+  disconnectTimeoutId = setTimeout(() => {
     console.log("Disconnecting for scheduled restart...");
     scheduledRestart = true; // Set flag for scheduled restart
     if (bot) bot.quit();
-    setTimeout(() => {
-      console.log("Reconnecting after scheduled restart...");
-      reconnectAttempts = 0; // Reset reconnect attempts after scheduled disconnect
-      scheduledRestart = false; // Reset flag after reconnecting
-      startBot();
-    }, 40 * 1000); // Wait for 40 seconds before reconnecting
+    reconnectAttempts = 0; // Reset reconnect attempts after scheduled disconnect
+    scheduledRestart = false; // Reset flag after reconnecting
+    startBot();
   }, disconnectInterval);
 }
 
