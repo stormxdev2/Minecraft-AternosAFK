@@ -160,11 +160,12 @@ function startMining() {
   miningIntervalId = setInterval(() => {
     if (bot) {
       const targetBlock = bot.findBlock({
-        matching: (block) => block.name === 'stone' || block.name === 'log' || block.name === 'cobblestone',
+        matching: (block) => block.name === 'stone' || block.name === 'cobblestone' || block.name.endsWith('_log') || block.name.endsWith('_wood'),
         maxDistance: 32,
       });
 
       if (targetBlock) {
+        console.log(`Found a block to mine: ${targetBlock.name}`);
         bot.dig(targetBlock, (err) => {
           if (err) {
             console.error(`Failed to mine: ${err.message}`);
@@ -172,6 +173,8 @@ function startMining() {
             console.log(`Successfully mined ${targetBlock.name}`);
           }
         });
+      } else {
+        console.log('No suitable block found to mine.');
       }
     }
   }, miningInterval);
