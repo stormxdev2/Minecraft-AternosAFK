@@ -33,11 +33,23 @@ const actions = ['forward', 'back', 'left', 'right'];
 const naturalMoveDuration = () => 1000 + Math.random() * 2000; // Move for 1-3 seconds
 const disconnectInterval = 1 * 60 * 60 * 1000; // 1 hour in milliseconds
 const chatInterval = 10 * 60 * 1000; // 10 minutes in milliseconds
+const miningInterval = 60 * 1000; // 1 minute in milliseconds
 const randomMessages = [
-  "Hello!", "How's everyone?", "What a nice day!", "Anyone up for a game?",
-  "Just chilling here!", "What's new?", "Happy mining!", "How's the weather in Minecraft?",
-  "Anyone need help?", "Let's build something cool!", "Exploring is fun!", "Mining time!",
-  "Watch out for creepers!", "Does anyone have diamonds?", "What's your favorite block?"
+  "Just finished building my house!",
+  "Anyone up for a mining trip?",
+  "Need help with anything?",
+  "Check out my new farm!",
+  "Found some diamonds today!",
+  "Anyone want to trade?",
+  "Just exploring the area.",
+  "Looking for a village.",
+  "Time to gather some resources.",
+  "Building a new project, wish me luck!",
+  "Anyone seen any cool caves nearby?",
+  "Avoiding creepers like a pro.",
+  "What's everyone working on today?",
+  "Need some food, anyone got extra?",
+  "Found a great spot to build!",
 ];
 
 let bot; // Declare bot variable to keep track of the bot instance
@@ -45,7 +57,7 @@ let reconnectAttempts = 0;
 const maxReconnectAttempts = 5;
 const reconnectInterval = 10 * 1000; // 10 seconds
 let scheduledRestart = false; // Flag to indicate if disconnect is scheduled
-let moveIntervalId, chatIntervalId, disconnectTimeoutId; // Track interval and timeout IDs
+let moveIntervalId, chatIntervalId, disconnectTimeoutId, miningIntervalId; // Track interval and timeout IDs
 
 function getRandomAction() {
   return actions[Math.floor(Math.random() * actions.length)];
@@ -85,6 +97,7 @@ function onLogin() {
   startMoving();
   scheduleDisconnect(); // Schedule the disconnect after 1 hour
   scheduleChatMessages(); // Schedule random chat messages every 10 minutes
+  startMining(); // Start mining activities
 }
 
 function onSpawn() {
@@ -143,6 +156,27 @@ function scheduleChatMessages() {
   }, chatInterval);
 }
 
+function startMining() {
+  miningIntervalId = setInterval(() => {
+    if (bot) {
+      const targetBlock = bot.findBlock({
+        matching: (block) => block.name === 'stone' || block.name === 'log' || block.name === 'cobblestone',
+        maxDistance: 32,
+      });
+
+      if (targetBlock) {
+        bot.dig(targetBlock, (err) => {
+          if (err) {
+            console.error(`Failed to mine: ${err.message}`);
+          } else {
+            console.log(`Successfully mined ${targetBlock.name}`);
+          }
+        });
+      }
+    }
+  }, miningInterval);
+}
+
 function attemptReconnect(reason) {
   let reasonString = '';
 
@@ -192,6 +226,7 @@ function scheduleDisconnect() {
 function cleanupIntervals() {
   clearInterval(moveIntervalId);
   clearInterval(chatIntervalId);
+  clearInterval(miningIntervalId);
   clearTimeout(disconnectTimeoutId);
 }
 
